@@ -42,7 +42,8 @@ file-sync-system/
 
 ```bash
 # 一键安装命令
-#
+'''
+'''
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
 ```
 
