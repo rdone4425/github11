@@ -1029,74 +1029,309 @@ show_interactive_menu() {
     done
 }
 
-# 快速设置向导
+# 增强的交互式配置向导
 run_setup_wizard() {
-    log_info "欢迎使用GitHub同步工具快速设置向导"
+    clear
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                GitHub同步工具配置向导                       ║"
+    echo "║              GitHub File Sync Configuration Wizard          ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    log_info "欢迎使用GitHub同步工具配置向导"
     echo ""
 
     # 检查是否已有配置文件
     if [ -f "$CONFIG_FILE" ]; then
-        echo "检测到现有配置文件: $CONFIG_FILE"
-        echo -n "是否要覆盖现有配置？[y/N]: "
-        read -r overwrite
-        if [ "$overwrite" != "y" ] && [ "$overwrite" != "Y" ]; then
-            log_info "保留现有配置，退出向导"
-            return 0
-        fi
+        echo "🔍 检测到现有配置文件: $CONFIG_FILE"
+        echo ""
+        echo "请选择操作："
+        echo "1) 覆盖现有配置（重新配置）"
+        echo "2) 编辑现有配置（修改部分设置）"
+        echo "3) 备份并重新配置"
+        echo "4) 取消配置"
+        echo ""
+        echo -n "请选择 [1-4]: "
+        read -r config_action
+
+        case "$config_action" in
+            1)
+                log_info "将覆盖现有配置"
+                ;;
+            2)
+                edit_existing_config
+                return $?
+                ;;
+            3)
+                backup_file="$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+                cp "$CONFIG_FILE" "$backup_file"
+                log_info "配置文件已备份到: $backup_file"
+                ;;
+            *)
+                log_info "取消配置向导"
+                return 0
+                ;;
+        esac
+        echo ""
     fi
 
+    # 显示配置向导菜单
+    show_wizard_menu
+}
+
+# 显示向导菜单
+show_wizard_menu() {
+    echo "📋 配置向导模式选择："
     echo ""
-    echo "请按照提示输入配置信息："
+    echo "1) 🚀 快速配置（推荐新手）"
+    echo "   - 使用预设模板"
+    echo "   - 只需输入基本信息"
+    echo "   - 自动配置常用选项"
+    echo ""
+    echo "2) ⚙️  标准配置（推荐）"
+    echo "   - 逐步配置所有选项"
+    echo "   - 提供详细说明和建议"
+    echo "   - 适合大多数用户"
+    echo ""
+    echo "3) 🔧 高级配置（专家用户）"
+    echo "   - 配置所有高级选项"
+    echo "   - 自定义过滤规则"
+    echo "   - 网络和性能优化"
+    echo ""
+    echo "4) 📄 从模板创建"
+    echo "   - 选择预设配置模板"
+    echo "   - 快速适配常见场景"
+    echo ""
+    echo -n "请选择配置模式 [1-4]: "
+    read -r wizard_mode
+
+    case "$wizard_mode" in
+        1) run_quick_wizard ;;
+        2) run_standard_wizard ;;
+        3) run_advanced_wizard ;;
+        4) run_template_wizard ;;
+        *)
+            log_error "无效选择，使用标准配置模式"
+            run_standard_wizard
+            ;;
+    esac
+}
+
+# 快速配置向导
+run_quick_wizard() {
+    echo ""
+    echo "🚀 快速配置向导"
+    echo "================"
+    echo ""
+
+    # 获取GitHub基本信息
+    get_github_credentials
+
+    # 选择预设模板
+    echo ""
+    echo "📋 选择配置模板："
+    echo "1) OpenWrt路由器配置同步"
+    echo "2) 开发环境配置同步"
+    echo "3) 服务器配置备份"
+    echo "4) 自定义配置"
+    echo ""
+    echo -n "请选择模板 [1-4]: "
+    read -r template_choice
+
+    case "$template_choice" in
+        1) apply_openwrt_template ;;
+        2) apply_dev_template ;;
+        3) apply_server_template ;;
+        *) get_basic_sync_paths ;;
+    esac
+
+    # 使用默认高级设置
+    poll_interval=30
+    log_level="INFO"
+    auto_commit=true
+
+    create_config_file
+    test_and_finish
+}
+
+# 获取GitHub凭据
+get_github_credentials() {
+    echo "🔑 GitHub账户配置"
+    echo "=================="
     echo ""
 
     # 获取GitHub用户名
-    echo -n "GitHub用户名: "
-    read -r github_username
-    while [ -z "$github_username" ]; do
-        echo "用户名不能为空，请重新输入:"
+    while true; do
         echo -n "GitHub用户名: "
         read -r github_username
+
+        if [ -z "$github_username" ]; then
+            echo "❌ 用户名不能为空，请重新输入"
+            continue
+        fi
+
+        # 验证用户名格式
+        if echo "$github_username" | grep -qE '^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'; then
+            echo "✅ 用户名格式正确"
+            break
+        else
+            echo "❌ 用户名格式不正确，只能包含字母、数字和连字符"
+        fi
     done
 
     # 获取GitHub令牌
     echo ""
-    echo "GitHub个人访问令牌 (在 https://github.com/settings/tokens 创建):"
-    echo -n "令牌: "
-    read -r github_token
-    while [ -z "$github_token" ]; do
-        echo "令牌不能为空，请重新输入:"
-        echo -n "令牌: "
+    echo "🔐 GitHub个人访问令牌配置"
+    echo ""
+    echo "📖 如何获取令牌："
+    echo "   1. 访问 https://github.com/settings/tokens"
+    echo "   2. 点击 'Generate new token (classic)'"
+    echo "   3. 选择 'repo' 权限（完整仓库访问）"
+    echo "   4. 复制生成的令牌"
+    echo ""
+
+    while true; do
+        echo -n "GitHub令牌: "
         read -r github_token
+
+        if [ -z "$github_token" ]; then
+            echo "❌ 令牌不能为空，请重新输入"
+            continue
+        fi
+
+        # 验证令牌格式（GitHub classic token格式）
+        if echo "$github_token" | grep -qE '^ghp_[a-zA-Z0-9]{36}$'; then
+            echo "✅ 令牌格式正确"
+            break
+        elif echo "$github_token" | grep -qE '^github_pat_[a-zA-Z0-9_]{82}$'; then
+            echo "✅ 令牌格式正确（Fine-grained token）"
+            break
+        else
+            echo "⚠️  令牌格式可能不正确，但将继续使用"
+            echo -n "确认使用此令牌？[y/N]: "
+            read -r confirm
+            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+                break
+            fi
+        fi
     done
 
-    # 获取轮询间隔
+    # 测试GitHub连接
     echo ""
-    echo -n "文件监控轮询间隔（秒，默认30）: "
-    read -r poll_interval
-    poll_interval=${poll_interval:-30}
+    echo "🔍 测试GitHub连接..."
+    if test_github_connection_with_token "$github_username" "$github_token"; then
+        echo "✅ GitHub连接测试成功"
+    else
+        echo "❌ GitHub连接测试失败"
+        echo -n "是否继续配置？[y/N]: "
+        read -r continue_config
+        if [ "$continue_config" != "y" ] && [ "$continue_config" != "Y" ]; then
+            log_info "配置已取消"
+            return 1
+        fi
+    fi
+}
 
-    # 获取日志级别
+# 测试GitHub连接（带凭据）
+test_github_connection_with_token() {
+    local username="$1"
+    local token="$2"
+
+    local response
+    response=$(curl -s -w "%{http_code}" -H "Authorization: token $token" \
+        "https://api.github.com/user" -o /dev/null 2>/dev/null)
+
+    [ "$response" = "200" ]
+}
+
+# OpenWrt模板配置
+apply_openwrt_template() {
     echo ""
-    echo "日志级别选择:"
-    echo "1) DEBUG - 详细调试信息"
-    echo "2) INFO  - 一般信息（推荐）"
-    echo "3) WARN  - 警告信息"
-    echo "4) ERROR - 仅错误信息"
-    echo -n "请选择 [1-4，默认2]: "
-    read -r log_level_choice
-
-    case "$log_level_choice" in
-        1) log_level="DEBUG" ;;
-        3) log_level="WARN" ;;
-        4) log_level="ERROR" ;;
-        *) log_level="INFO" ;;
-    esac
-
-    # 获取同步路径
+    echo "📱 OpenWrt路由器配置模板"
+    echo "========================"
     echo ""
-    echo "配置同步路径（可以稍后在配置文件中修改）:"
-    echo "格式: 本地路径|GitHub仓库|分支|目标路径"
-    echo "示例: /etc/config|$github_username/openwrt-config|main|config"
+    echo "此模板将同步以下OpenWrt配置："
+    echo "• /etc/config/* - 系统配置文件"
+    echo "• /etc/firewall.user - 防火墙规则"
+    echo "• /etc/crontabs/root - 定时任务"
+    echo "• /etc/dropbear/ - SSH配置"
+    echo ""
+
+    # 询问仓库名称
+    echo -n "GitHub仓库名称 (默认: openwrt-config): "
+    read -r repo_name
+    repo_name=${repo_name:-openwrt-config}
+
+    sync_paths="/etc/config|$github_username/$repo_name|main|config
+/etc/firewall.user|$github_username/$repo_name|main|firewall.user
+/etc/crontabs/root|$github_username/$repo_name|main|crontab
+/etc/dropbear|$github_username/$repo_name|main|ssh"
+
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-* *.orig"
+    commit_template="[OpenWrt] Auto sync %s from $(hostname)"
+}
+
+# 开发环境模板配置
+apply_dev_template() {
+    echo ""
+    echo "💻 开发环境配置模板"
+    echo "==================="
+    echo ""
+    echo "此模板将同步以下开发配置："
+    echo "• ~/.bashrc, ~/.profile - Shell配置"
+    echo "• ~/.vimrc, ~/.tmux.conf - 编辑器配置"
+    echo "• ~/.gitconfig - Git配置"
+    echo "• ~/scripts/ - 自定义脚本"
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: dev-config): "
+    read -r repo_name
+    repo_name=${repo_name:-dev-config}
+
+    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|bashrc
+$HOME/.profile|$github_username/$repo_name|main|profile
+$HOME/.vimrc|$github_username/$repo_name|main|vimrc
+$HOME/.tmux.conf|$github_username/$repo_name|main|tmux.conf
+$HOME/.gitconfig|$github_username/$repo_name|main|gitconfig
+$HOME/scripts|$github_username/$repo_name|main|scripts"
+
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
+    commit_template="[Dev] Auto sync %s"
+}
+
+# 服务器配置模板
+apply_server_template() {
+    echo ""
+    echo "🖥️  服务器配置模板"
+    echo "=================="
+    echo ""
+    echo "此模板将同步以下服务器配置："
+    echo "• /etc/nginx/ - Nginx配置"
+    echo "• /etc/systemd/system/ - 系统服务"
+    echo "• /root/scripts/ - 管理脚本"
+    echo "• /etc/crontab - 系统定时任务"
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: server-config): "
+    read -r repo_name
+    repo_name=${repo_name:-server-config}
+
+    sync_paths="/etc/nginx|$github_username/$repo_name|main|nginx
+/etc/systemd/system|$github_username/$repo_name|main|systemd
+/root/scripts|$github_username/$repo_name|main|scripts
+/etc/crontab|$github_username/$repo_name|main|crontab"
+
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ *.cache"
+    commit_template="[Server] Auto sync %s from $(hostname)"
+}
+
+# 获取基本同步路径
+get_basic_sync_paths() {
+    echo ""
+    echo "📁 自定义同步路径配置"
+    echo "===================="
+    echo ""
+    echo "格式说明: 本地路径|GitHub仓库|分支|目标路径"
+    echo "示例: /etc/config|$github_username/my-config|main|config"
     echo ""
 
     sync_paths=""
@@ -1111,10 +1346,20 @@ run_setup_wizard() {
             break
         fi
 
+        # 验证路径存在
+        if [ ! -e "$local_path" ]; then
+            echo "⚠️  路径不存在: $local_path"
+            echo -n "是否继续添加？[y/N]: "
+            read -r continue_add
+            if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
+                continue
+            fi
+        fi
+
         echo -n "GitHub仓库 ($github_username/): "
         read -r repo_name
         if [ -z "$repo_name" ]; then
-            repo_name="openwrt-config"
+            repo_name="config-backup"
         fi
 
         echo -n "分支 (默认main): "
@@ -1133,68 +1378,796 @@ $local_path|$github_username/$repo_name|$branch|$target_path"
         fi
 
         path_count=$((path_count + 1))
+        echo "✅ 已添加同步路径"
         echo ""
     done
 
     if [ -z "$sync_paths" ]; then
-        # 提供默认配置
-        sync_paths="/etc/config|$github_username/openwrt-config|main|config"
-        log_warn "未配置同步路径，使用默认配置: $sync_paths"
+        echo "⚠️  未配置同步路径，使用默认配置"
+        sync_paths="/etc/config|$github_username/config-backup|main|config"
     fi
 
-    # 创建配置文件
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~"
+    commit_template="Auto sync %s"
+}
+
+# 标准配置向导
+run_standard_wizard() {
+    echo ""
+    echo "⚙️  标准配置向导"
+    echo "==============="
+    echo ""
+
+    # 获取GitHub凭据
+    get_github_credentials
+
+    # 获取同步路径
+    get_detailed_sync_paths
+
+    # 获取监控设置
+    get_monitoring_settings
+
+    # 获取高级选项
+    get_basic_advanced_options
+
+    create_config_file
+    test_and_finish
+}
+
+# 获取详细同步路径配置
+get_detailed_sync_paths() {
+    echo ""
+    echo "📁 同步路径配置"
+    echo "==============="
+    echo ""
+    echo "配置要同步的文件和目录路径"
+    echo "格式: 本地路径|GitHub仓库|分支|目标路径"
+    echo ""
+
+    sync_paths=""
+    path_count=1
+
+    while true; do
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "同步路径 $path_count 配置:"
+        echo ""
+
+        # 本地路径
+        while true; do
+            echo -n "本地路径 (留空结束配置): "
+            read -r local_path
+
+            if [ -z "$local_path" ]; then
+                break 2
+            fi
+
+            # 验证路径
+            if [ -e "$local_path" ]; then
+                if [ -d "$local_path" ]; then
+                    echo "✅ 目录存在: $local_path"
+                else
+                    echo "✅ 文件存在: $local_path"
+                fi
+                break
+            else
+                echo "⚠️  路径不存在: $local_path"
+                echo -n "是否继续使用此路径？[y/N]: "
+                read -r use_path
+                if [ "$use_path" = "y" ] || [ "$use_path" = "Y" ]; then
+                    break
+                fi
+            fi
+        done
+
+        # GitHub仓库
+        echo -n "GitHub仓库名称 ($github_username/): "
+        read -r repo_name
+        if [ -z "$repo_name" ]; then
+            repo_name="config-backup"
+            echo "使用默认仓库名: $repo_name"
+        fi
+
+        # 分支
+        echo -n "目标分支 (默认main): "
+        read -r branch
+        branch=${branch:-main}
+
+        # 目标路径
+        echo -n "仓库中的目标路径 (可留空): "
+        read -r target_path
+
+        # 添加到同步路径
+        if [ -z "$sync_paths" ]; then
+            sync_paths="$local_path|$github_username/$repo_name|$branch|$target_path"
+        else
+            sync_paths="$sync_paths
+$local_path|$github_username/$repo_name|$branch|$target_path"
+        fi
+
+        echo "✅ 已添加: $local_path → $github_username/$repo_name:$branch/$target_path"
+        path_count=$((path_count + 1))
+        echo ""
+    done
+
+    if [ -z "$sync_paths" ]; then
+        echo "⚠️  未配置同步路径，使用默认配置"
+        sync_paths="/etc/config|$github_username/config-backup|main|config"
+    fi
+
+    echo ""
+    echo "📋 已配置的同步路径:"
+    echo "$sync_paths" | while IFS='|' read -r lpath repo branch tpath; do
+        echo "  • $lpath → $repo:$branch/$tpath"
+    done
+}
+
+# 获取监控设置
+get_monitoring_settings() {
+    echo ""
+    echo "⏱️  监控设置配置"
+    echo "==============="
+    echo ""
+
+    # 轮询间隔
+    echo "文件监控轮询间隔设置:"
+    echo "• 10秒 - 高频监控（适合开发环境）"
+    echo "• 30秒 - 标准监控（推荐）"
+    echo "• 60秒 - 低频监控（适合生产环境）"
+    echo "• 300秒 - 极低频监控（适合大文件）"
+    echo ""
+    echo -n "轮询间隔（秒，默认30）: "
+    read -r poll_interval
+    poll_interval=${poll_interval:-30}
+
+    # 验证输入
+    if ! echo "$poll_interval" | grep -qE '^[0-9]+$' || [ "$poll_interval" -lt 5 ]; then
+        echo "⚠️  无效输入，使用默认值30秒"
+        poll_interval=30
+    fi
+
+    # 日志级别
+    echo ""
+    echo "日志级别选择:"
+    echo "1) DEBUG - 详细调试信息（开发调试用）"
+    echo "2) INFO  - 一般信息（推荐）"
+    echo "3) WARN  - 仅警告和错误"
+    echo "4) ERROR - 仅错误信息"
+    echo ""
+    echo -n "请选择日志级别 [1-4，默认2]: "
+    read -r log_level_choice
+
+    case "$log_level_choice" in
+        1) log_level="DEBUG" ;;
+        3) log_level="WARN" ;;
+        4) log_level="ERROR" ;;
+        *) log_level="INFO" ;;
+    esac
+
+    echo "✅ 监控设置: 轮询间隔${poll_interval}秒, 日志级别${log_level}"
+}
+
+# 获取基本高级选项
+get_basic_advanced_options() {
+    echo ""
+    echo "🔧 高级选项配置"
+    echo "==============="
+    echo ""
+
+    # 自动提交
+    echo -n "启用自动提交？[Y/n]: "
+    read -r auto_commit_choice
+    if [ "$auto_commit_choice" = "n" ] || [ "$auto_commit_choice" = "N" ]; then
+        auto_commit=false
+    else
+        auto_commit=true
+    fi
+
+    # 提交消息模板
+    if [ "$auto_commit" = "true" ]; then
+        echo ""
+        echo "提交消息模板配置:"
+        echo "可用变量: %s (文件路径), \$(hostname) (主机名), \$(date) (日期)"
+        echo ""
+        echo -n "提交消息模板 (默认: Auto sync %s): "
+        read -r commit_template
+        commit_template=${commit_template:-"Auto sync %s"}
+    else
+        commit_template="Manual sync %s"
+    fi
+
+    # 文件过滤
+    echo ""
+    echo "文件过滤规则 (用空格分隔的模式):"
+    echo "默认: *.tmp *.log *.pid *.lock .git *.swp *~"
+    echo ""
+    echo -n "排除模式 (回车使用默认): "
+    read -r exclude_input
+    if [ -n "$exclude_input" ]; then
+        exclude_patterns="$exclude_input"
+    else
+        exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
+    fi
+
+    echo "✅ 高级选项配置完成"
+}
+
+# 高级配置向导
+run_advanced_wizard() {
+    echo ""
+    echo "🔧 高级配置向导"
+    echo "==============="
+    echo ""
+
+    # 获取GitHub凭据
+    get_github_credentials
+
+    # 获取详细同步路径
+    get_detailed_sync_paths
+
+    # 获取监控设置
+    get_monitoring_settings
+
+    # 获取完整高级选项
+    get_advanced_options
+
+    # 获取网络设置
+    get_network_settings
+
+    create_config_file
+    test_and_finish
+}
+
+# 获取高级选项
+get_advanced_options() {
+    echo ""
+    echo "🔧 高级选项配置"
+    echo "==============="
+    echo ""
+
+    # 自动提交
+    echo -n "启用自动提交？[Y/n]: "
+    read -r auto_commit_choice
+    auto_commit=$([ "$auto_commit_choice" != "n" ] && [ "$auto_commit_choice" != "N" ] && echo "true" || echo "false")
+
+    # 提交消息模板
+    echo ""
+    echo "提交消息模板配置:"
+    echo "可用变量:"
+    echo "  %s - 文件相对路径"
+    echo "  \$(hostname) - 主机名"
+    echo "  \$(date) - 当前日期"
+    echo "  \$(whoami) - 当前用户"
+    echo ""
+    echo -n "提交消息模板 (默认: Auto sync %s from \$(hostname)): "
+    read -r commit_template
+    commit_template=${commit_template:-"Auto sync %s from \$(hostname)"}
+
+    # 文件大小限制
+    echo ""
+    echo "文件大小限制配置:"
+    echo "1) 512KB - 小文件"
+    echo "2) 1MB - 标准（推荐）"
+    echo "3) 5MB - 大文件"
+    echo "4) 10MB - 超大文件"
+    echo "5) 自定义"
+    echo ""
+    echo -n "请选择 [1-5，默认2]: "
+    read -r size_choice
+
+    case "$size_choice" in
+        1) max_file_size=524288 ;;      # 512KB
+        3) max_file_size=5242880 ;;     # 5MB
+        4) max_file_size=10485760 ;;    # 10MB
+        5)
+            echo -n "请输入文件大小限制（字节）: "
+            read -r max_file_size
+            max_file_size=${max_file_size:-1048576}
+            ;;
+        *) max_file_size=1048576 ;;     # 1MB
+    esac
+
+    # 高级文件过滤
+    echo ""
+    echo "高级文件过滤配置:"
+    echo "当前默认排除模式: *.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
+    echo ""
+    echo "1) 使用默认排除模式"
+    echo "2) 添加自定义排除模式"
+    echo "3) 完全自定义排除模式"
+    echo ""
+    echo -n "请选择 [1-3]: "
+    read -r filter_choice
+
+    case "$filter_choice" in
+        1)
+            exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
+            ;;
+        2)
+            echo -n "额外排除模式 (空格分隔): "
+            read -r extra_patterns
+            exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store $extra_patterns"
+            ;;
+        3)
+            echo -n "自定义排除模式 (空格分隔): "
+            read -r exclude_patterns
+            exclude_patterns=${exclude_patterns:-"*.tmp *.log *.pid *.lock .git"}
+            ;;
+    esac
+
+    # 重试设置
+    echo ""
+    echo "网络重试设置:"
+    echo -n "最大重试次数 (默认3): "
+    read -r max_retries
+    max_retries=${max_retries:-3}
+
+    echo -n "重试间隔（秒，默认5）: "
+    read -r retry_interval
+    retry_interval=${retry_interval:-5}
+
+    echo "✅ 高级选项配置完成"
+}
+
+# 获取网络设置
+get_network_settings() {
+    echo ""
+    echo "🌐 网络设置配置"
+    echo "==============="
+    echo ""
+
+    # HTTP超时
+    echo -n "HTTP请求超时时间（秒，默认30）: "
+    read -r http_timeout
+    http_timeout=${http_timeout:-30}
+
+    # SSL验证
+    echo ""
+    echo -n "启用SSL证书验证？[Y/n]: "
+    read -r ssl_verify
+    verify_ssl=$([ "$ssl_verify" != "n" ] && [ "$ssl_verify" != "N" ] && echo "true" || echo "false")
+
+    # 代理设置
+    echo ""
+    echo -n "是否配置HTTP代理？[y/N]: "
+    read -r use_proxy
+
+    if [ "$use_proxy" = "y" ] || [ "$use_proxy" = "Y" ]; then
+        echo -n "HTTP代理地址 (格式: http://proxy:port): "
+        read -r http_proxy
+        echo -n "HTTPS代理地址 (默认同HTTP代理): "
+        read -r https_proxy
+        https_proxy=${https_proxy:-$http_proxy}
+    else
+        http_proxy=""
+        https_proxy=""
+    fi
+
+    echo "✅ 网络设置配置完成"
+}
+
+# 模板向导
+run_template_wizard() {
+    echo ""
+    echo "📄 模板配置向导"
+    echo "==============="
+    echo ""
+
+    echo "选择预设配置模板:"
+    echo ""
+    echo "1) 🏠 家庭路由器配置"
+    echo "   - 基本OpenWrt配置同步"
+    echo "   - 网络设置、防火墙规则"
+    echo ""
+    echo "2) 🏢 企业路由器配置"
+    echo "   - 完整OpenWrt配置同步"
+    echo "   - 包含高级网络配置"
+    echo ""
+    echo "3) 💻 开发工作站配置"
+    echo "   - 开发环境配置文件"
+    echo "   - 编辑器、Shell配置"
+    echo ""
+    echo "4) 🖥️  生产服务器配置"
+    echo "   - 服务器配置文件"
+    echo "   - 系统服务、定时任务"
+    echo ""
+    echo "5) 🔧 自定义最小配置"
+    echo "   - 仅基本同步功能"
+    echo "   - 手动指定路径"
+    echo ""
+    echo -n "请选择模板 [1-5]: "
+    read -r template_choice
+
+    # 获取GitHub凭据
+    get_github_credentials
+
+    case "$template_choice" in
+        1) apply_home_router_template ;;
+        2) apply_enterprise_router_template ;;
+        3) apply_dev_workstation_template ;;
+        4) apply_production_server_template ;;
+        5) apply_minimal_template ;;
+        *)
+            log_error "无效选择，使用自定义最小配置"
+            apply_minimal_template
+            ;;
+    esac
+
+    create_config_file
+    test_and_finish
+}
+
+# 创建配置文件
+create_config_file() {
     echo ""
     log_info "创建配置文件..."
 
+    # 生成时间戳
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
     cat > "$CONFIG_FILE" << EOF
 # GitHub Sync Tool Configuration
-# 由快速设置向导生成
+# 配置文件生成时间: $timestamp
+# 生成方式: 交互式配置向导
 
+#==============================================================================
 # GitHub配置
+#==============================================================================
+
+# GitHub用户名
 GITHUB_USERNAME="$github_username"
+
+# GitHub个人访问令牌
 GITHUB_TOKEN="$github_token"
 
+#==============================================================================
 # 监控配置
+#==============================================================================
+
+# 文件监控轮询间隔（秒）
 POLL_INTERVAL=$poll_interval
+
+# 日志级别: DEBUG, INFO, WARN, ERROR
 LOG_LEVEL="$log_level"
 
+#==============================================================================
 # 同步路径配置
+#==============================================================================
+
+# 同步路径配置
+# 格式: 本地路径|GitHub仓库|分支|目标路径
 SYNC_PATHS="$sync_paths"
 
-# 文件过滤
-EXCLUDE_PATTERNS="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
+#==============================================================================
+# 文件过滤配置
+#==============================================================================
 
+# 排除文件模式（用空格分隔）
+EXCLUDE_PATTERNS="$exclude_patterns"
+
+#==============================================================================
 # 高级选项
-AUTO_COMMIT=true
-COMMIT_MESSAGE_TEMPLATE="Auto sync from OpenWrt: %s"
-MAX_FILE_SIZE=1048576
+#==============================================================================
+
+# 自动提交
+AUTO_COMMIT=$auto_commit
+
+# 提交消息模板
+COMMIT_MESSAGE_TEMPLATE="$commit_template"
+
+# 最大文件大小（字节）
+MAX_FILE_SIZE=${max_file_size:-1048576}
+
+# 最大日志文件大小（字节）
+MAX_LOG_SIZE=1048576
+
+#==============================================================================
+# 网络配置
+#==============================================================================
+
+# HTTP超时时间（秒）
+HTTP_TIMEOUT=${http_timeout:-30}
+
+# 重试次数
+MAX_RETRIES=${max_retries:-3}
+
+# 重试间隔（秒）
+RETRY_INTERVAL=${retry_interval:-5}
+
+# SSL证书验证
+VERIFY_SSL=${verify_ssl:-true}
+
+EOF
+
+    # 添加代理配置（如果有）
+    if [ -n "$http_proxy" ]; then
+        cat >> "$CONFIG_FILE" << EOF
+# 代理配置
+HTTP_PROXY="$http_proxy"
+HTTPS_PROXY="$https_proxy"
+
+EOF
+    fi
+
+    # 添加配置说明
+    cat >> "$CONFIG_FILE" << 'EOF'
+#==============================================================================
+# 配置说明
+#==============================================================================
+
+# 1. GitHub令牌权限要求：
+#    - repo: 完整的仓库访问权限
+#    - 如果是私有仓库，确保令牌有相应权限
+#
+# 2. 同步路径格式说明：
+#    - 本地路径: 要监控的本地文件或目录的绝对路径
+#    - GitHub仓库: 格式为 "用户名/仓库名"
+#    - 分支: 目标分支名称，通常是 "main" 或 "master"
+#    - 目标路径: 在GitHub仓库中的目标路径，可以为空
+#
+# 3. 修改配置后需要重启服务：
+#    github-sync restart
 EOF
 
     log_success "配置文件创建成功: $CONFIG_FILE"
+}
 
-    # 测试配置
+# 测试配置并完成设置
+test_and_finish() {
     echo ""
     log_info "测试配置..."
+
     if test_config; then
-        log_success "配置测试通过！"
+        log_success "✅ 配置测试通过！"
 
         echo ""
+        echo "🎉 配置向导完成！"
+        echo ""
+        echo "📋 配置摘要:"
+        echo "  • GitHub用户: $github_username"
+        echo "  • 轮询间隔: ${poll_interval}秒"
+        echo "  • 日志级别: $log_level"
+        echo "  • 同步路径: $(echo "$sync_paths" | wc -l)个"
+        echo "  • 自动提交: $auto_commit"
+        echo ""
+
         echo -n "是否现在启动同步服务？[Y/n]: "
         read -r start_service
         if [ "$start_service" != "n" ] && [ "$start_service" != "N" ]; then
             echo ""
             if start_daemon; then
-                log_success "同步服务启动成功！"
+                log_success "🚀 同步服务启动成功！"
+                echo ""
+                echo "服务管理命令:"
+                echo "  github-sync status   # 查看状态"
+                echo "  github-sync stop     # 停止服务"
+                echo "  github-sync restart  # 重启服务"
             else
-                log_error "同步服务启动失败，请检查配置"
+                log_error "❌ 同步服务启动失败，请检查配置"
             fi
+        else
+            echo ""
+            echo "稍后可使用以下命令启动服务:"
+            echo "  github-sync start"
         fi
     else
-        log_error "配置测试失败，请检查GitHub用户名和令牌"
+        log_error "❌ 配置测试失败，请检查GitHub用户名和令牌"
+        echo ""
+        echo "可以稍后编辑配置文件: $CONFIG_FILE"
+        echo "然后运行: github-sync test"
     fi
 
     echo ""
-    log_info "快速设置向导完成"
+    log_info "配置向导完成"
+}
+
+# 编辑现有配置
+edit_existing_config() {
+    echo ""
+    echo "✏️  编辑现有配置"
+    echo "==============="
+    echo ""
+
+    # 加载现有配置
+    if ! load_config; then
+        log_error "无法加载现有配置文件"
+        return 1
+    fi
+
+    echo "当前配置摘要:"
+    echo "  • GitHub用户: $GITHUB_USERNAME"
+    echo "  • 轮询间隔: ${POLL_INTERVAL}秒"
+    echo "  • 日志级别: $LOG_LEVEL"
+    echo "  • 同步路径: $(echo "$SYNC_PATHS" | wc -l)个"
+    echo ""
+
+    echo "选择要修改的配置项:"
+    echo "1) GitHub凭据"
+    echo "2) 同步路径"
+    echo "3) 监控设置"
+    echo "4) 高级选项"
+    echo "5) 完整重新配置"
+    echo "6) 取消"
+    echo ""
+    echo -n "请选择 [1-6]: "
+    read -r edit_choice
+
+    case "$edit_choice" in
+        1) edit_github_credentials ;;
+        2) edit_sync_paths ;;
+        3) edit_monitoring_settings ;;
+        4) edit_advanced_options ;;
+        5) run_standard_wizard ;;
+        *) log_info "取消编辑"; return 0 ;;
+    esac
+}
+
+# 编辑GitHub凭据
+edit_github_credentials() {
+    echo ""
+    echo "🔑 编辑GitHub凭据"
+    echo "=================="
+    echo ""
+    echo "当前GitHub用户: $GITHUB_USERNAME"
+    echo ""
+    echo -n "是否修改GitHub用户名？[y/N]: "
+    read -r change_username
+
+    if [ "$change_username" = "y" ] || [ "$change_username" = "Y" ]; then
+        echo -n "新的GitHub用户名: "
+        read -r new_username
+        if [ -n "$new_username" ]; then
+            github_username="$new_username"
+        else
+            github_username="$GITHUB_USERNAME"
+        fi
+    else
+        github_username="$GITHUB_USERNAME"
+    fi
+
+    echo ""
+    echo -n "是否修改GitHub令牌？[y/N]: "
+    read -r change_token
+
+    if [ "$change_token" = "y" ] || [ "$change_token" = "Y" ]; then
+        echo -n "新的GitHub令牌: "
+        read -r new_token
+        if [ -n "$new_token" ]; then
+            github_token="$new_token"
+        else
+            github_token="$GITHUB_TOKEN"
+        fi
+    else
+        github_token="$GITHUB_TOKEN"
+    fi
+
+    # 保留其他设置
+    poll_interval="$POLL_INTERVAL"
+    log_level="$LOG_LEVEL"
+    sync_paths="$SYNC_PATHS"
+    exclude_patterns="$EXCLUDE_PATTERNS"
+    auto_commit="$AUTO_COMMIT"
+    commit_template="$COMMIT_MESSAGE_TEMPLATE"
+    max_file_size="$MAX_FILE_SIZE"
+
+    create_config_file
+    test_and_finish
+}
+
+# 家庭路由器模板
+apply_home_router_template() {
+    echo ""
+    echo "🏠 家庭路由器配置模板"
+    echo "===================="
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: home-router-config): "
+    read -r repo_name
+    repo_name=${repo_name:-home-router-config}
+
+    sync_paths="/etc/config|$github_username/$repo_name|main|config
+/etc/firewall.user|$github_username/$repo_name|main|firewall.user
+/etc/crontabs/root|$github_username/$repo_name|main|crontab"
+
+    poll_interval=60
+    log_level="INFO"
+    auto_commit=true
+    commit_template="[Home Router] Auto sync %s"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-*"
+    max_file_size=1048576
+}
+
+# 企业路由器模板
+apply_enterprise_router_template() {
+    echo ""
+    echo "🏢 企业路由器配置模板"
+    echo "===================="
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: enterprise-router-config): "
+    read -r repo_name
+    repo_name=${repo_name:-enterprise-router-config}
+
+    sync_paths="/etc/config|$github_username/$repo_name|main|config
+/etc/firewall.user|$github_username/$repo_name|main|firewall.user
+/etc/crontabs/root|$github_username/$repo_name|main|crontab
+/etc/dropbear|$github_username/$repo_name|main|ssh
+/etc/uhttpd|$github_username/$repo_name|main|web
+/etc/dnsmasq.conf|$github_username/$repo_name|main|dnsmasq.conf"
+
+    poll_interval=30
+    log_level="INFO"
+    auto_commit=true
+    commit_template="[Enterprise] Auto sync %s from \$(hostname)"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-* *.orig"
+    max_file_size=2097152
+}
+
+# 开发工作站模板
+apply_dev_workstation_template() {
+    echo ""
+    echo "💻 开发工作站配置模板"
+    echo "===================="
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: dev-workstation-config): "
+    read -r repo_name
+    repo_name=${repo_name:-dev-workstation-config}
+
+    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|shell/bashrc
+$HOME/.profile|$github_username/$repo_name|main|shell/profile
+$HOME/.vimrc|$github_username/$repo_name|main|editor/vimrc
+$HOME/.tmux.conf|$github_username/$repo_name|main|terminal/tmux.conf
+$HOME/.gitconfig|$github_username/$repo_name|main|git/gitconfig
+$HOME/scripts|$github_username/$repo_name|main|scripts"
+
+    poll_interval=10
+    log_level="DEBUG"
+    auto_commit=true
+    commit_template="[Dev] Auto sync %s"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store *.pyc __pycache__"
+    max_file_size=5242880
+}
+
+# 生产服务器模板
+apply_production_server_template() {
+    echo ""
+    echo "🖥️  生产服务器配置模板"
+    echo "====================="
+    echo ""
+
+    echo -n "GitHub仓库名称 (默认: production-server-config): "
+    read -r repo_name
+    repo_name=${repo_name:-production-server-config}
+
+    sync_paths="/etc/nginx|$github_username/$repo_name|main|nginx
+/etc/systemd/system|$github_username/$repo_name|main|systemd
+/root/scripts|$github_username/$repo_name|main|scripts
+/etc/crontab|$github_username/$repo_name|main|crontab
+/etc/logrotate.d|$github_username/$repo_name|main|logrotate"
+
+    poll_interval=300
+    log_level="WARN"
+    auto_commit=true
+    commit_template="[Production] Auto sync %s from \$(hostname) at \$(date)"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ *.cache *.backup"
+    max_file_size=1048576
+}
+
+# 最小配置模板
+apply_minimal_template() {
+    echo ""
+    echo "🔧 自定义最小配置模板"
+    echo "===================="
+    echo ""
+
+    get_basic_sync_paths
+
+    poll_interval=60
+    log_level="INFO"
+    auto_commit=true
+    commit_template="Auto sync %s"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git"
+    max_file_size=1048576
 }
 
 # 显示配置示例

@@ -1,180 +1,226 @@
-# Linux文件监控和GitHub同步系统
+# GitHub File Sync Tool for OpenWrt/Kwrt
 
-一个基于Shell脚本的Linux文件监控和GitHub同步系统，支持实时监控本地文件变化并自动同步到GitHub仓库。
+专为OpenWrt/Kwrt系统设计的GitHub文件同步工具，使用单个Shell脚本实现本地文件到GitHub仓库的自动同步功能。
 
-## 功能特性
-
-- 🔍 **实时文件监控**: 使用inotify监控指定目录的文件变化
-- 🚀 **自动GitHub同步**: 检测到文件变化时自动上传到GitHub仓库
-- 📁 **多路径支持**: 支持监控多个目录，每个目录可配置不同的GitHub仓库
-- ⚙️ **灵活配置**: 全局配置GitHub凭据，独立配置每个监控路径
-- 🔧 **后台运行**: 支持作为系统服务在后台运行
-- 📝 **完整日志**: 详细的操作日志和错误处理
-
-## 项目结构
-
-```
-file-sync-system/
-├── bin/                    # 主要可执行脚本
-│   ├── file-sync          # 主程序入口
-│   └── file-sync-daemon   # 守护进程脚本
-├── lib/                   # 核心功能模块
-│   ├── config.sh         # 配置管理模块
-│   ├── monitor.sh        # 文件监控模块
-│   ├── github.sh         # GitHub同步模块
-│   ├── logger.sh         # 日志记录模块
-│   └── utils.sh          # 工具函数
-├── config/               # 配置文件目录
-│   ├── global.conf       # 全局配置文件
-│   └── paths.conf        # 监控路径配置
-├── systemd/              # 系统服务配置
-│   └── file-sync.service # systemd服务文件
-├── logs/                 # 日志文件目录
-└── docs/                 # 文档目录
-    ├── installation.md   # 安装指南
-    ├── configuration.md  # 配置说明
-    └── usage.md          # 使用说明
-```
-
-## 快速开始
-
-### 🔍 系统兼容性检查
+## 🚀 一键安装
 
 ```bash
-# 检查系统是否支持安装
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
 ```
 
-### 🚀 一键启动
+> 🎯 **零配置安装**: 自动检测系统、安装依赖、配置服务，一条命令完成所有设置！
+
+## 特性
+
+- 🚀 **单脚本设计**: 所有功能集成在一个Shell脚本中，易于部署和维护
+- 🔄 **自动同步**: 监控本地文件变化，自动同步到GitHub仓库
+- 🎯 **多路径支持**: 支持同时监控多个目录，同步到不同的GitHub仓库
+- 🛡️ **OpenWrt优化**: 专为OpenWrt/Kwrt系统优化，支持procd服务管理
+- 📊 **轮询监控**: 使用轮询方式监控文件变化，无需inotify-tools
+- 🔧 **灵活配置**: 支持文件过滤、自定义提交消息等高级配置
+- 📝 **完善日志**: 详细的日志记录和错误处理机制
+- 🔒 **安全可靠**: 支持GitHub API认证，安全传输文件
+
+## 系统要求
+
+- OpenWrt/Kwrt系统（推荐）或其他Linux系统
+- curl工具（用于GitHub API调用）
+- base64工具（用于文件编码）
+- 稳定的网络连接
+
+> 💡 **提示**: 一键安装脚本会自动检测系统并安装所需依赖，无需手动准备。
+
+## 🚀 一键安装
 
 ```bash
-# 下载并运行（推荐）
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/file-sync.sh)
-
-
-```bash
-# 或者直接运行
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/file-sync.sh) install
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
 ```
 
-**🎯 极简设计理念：**
-- 📦 **单文件解决方案** - 所有功能集成在一个文件中
-- 🧠 **智能检测** - 自动识别系统类型和环境
-- ⚡ **智能包管理** - 避免重复更新包列表（OpenWrt）
-- 🔄 **无复杂依赖** - 只需要基础工具（tar、curl/wget）
+就这么简单！脚本会自动：
+- 检测系统类型（OpenWrt/Debian/Ubuntu等）
+- 安装必要依赖（curl、base64等）
+- 下载并配置同步工具
+- 设置系统服务（OpenWrt使用procd）
+- 启动交互式配置向导
 
-**安装后的使用流程：**
-```bash
-file-sync config                    # 配置GitHub凭据
-file-sync add /etc/config user/repo # 添加监控路径
-file-sync start                     # 启动监控
-file-sync status                    # 查看状态
-```
-
-### 📦 完整使用流程
+安装完成后，运行 `github-sync` 进入交互式菜单，或者：
 
 ```bash
-# 1. 下载程序
-wget https://raw.githubusercontent.com/rdone4425/github11/main/file-sync.sh
-chmod +x file-sync.sh
-
-# 2. 安装系统
-sudo ./file-sync.sh install
-
-# 3. 配置GitHub凭据
-file-sync config
-
-# 4. 添加监控路径
-file-sync add /etc/config username/openwrt-config
-file-sync add /root/scripts username/my-scripts
-
-# 5. 启动监控
-file-sync start
-
-# 6. 查看状态
-file-sync status
-
-# 7. 手动同步
-file-sync sync
-
-# 8. 停止监控
-file-sync stop
+github-sync config   # 编辑配置文件
+github-sync test     # 测试配置
+github-sync start    # 启动服务
+github-sync status   # 查看状态
 ```
 
-### 演示模式
+## 详细配置
 
-运行演示脚本了解系统功能：
+### GitHub令牌设置
+
+1. 访问 [GitHub Settings > Personal Access Tokens](https://github.com/settings/tokens)
+2. 点击 "Generate new token (classic)"
+3. 选择以下权限：
+   - `repo`: 完整的仓库访问权限
+4. 复制生成的令牌到配置文件
+
+### 同步路径配置
+
+同步路径格式：`本地路径|GitHub仓库|分支|目标路径`
 
 ```bash
-./demo.sh
+SYNC_PATHS="
+/etc/config|username/openwrt-config|main|config
+/root/scripts|username/scripts|main|
+/etc/firewall.user|username/openwrt-config|main|firewall.user
+"
 ```
 
-详细说明请参考 [安装指南](docs/installation.md)。
+### 文件过滤
 
-## 主要特性
+```bash
+# 排除不需要同步的文件
+EXCLUDE_PATTERNS="*.tmp *.log *.pid *.lock .git *.swp"
+```
 
-### 🔍 实时文件监控
-- 基于Linux inotify机制（优先）
-- 轮询监控模式（inotify不可用时）
-- 支持递归目录监控
-- 智能文件过滤和排除
-- 自动适配OpenWrt等嵌入式系统
+## 命令参考
 
-### 🚀 自动GitHub同步
-- 实时检测文件变化
-- 自动上传到指定GitHub仓库
-- 支持多分支和子目录映射
+```bash
+# 基本命令
+./github-sync.sh start          # 启动服务
+./github-sync.sh stop           # 停止服务
+./github-sync.sh restart        # 重启服务
+./github-sync.sh status         # 查看状态
 
-### 📁 多路径支持
-- 同时监控多个目录
-- 每个路径独立配置
-- 灵活的启用/禁用控制
+# 配置和测试
+./github-sync.sh config         # 编辑配置
+./github-sync.sh test           # 测试配置
+./github-sync.sh sync           # 执行一次性同步
 
-### ⚙️ 灵活配置
-- 全局配置和路径配置分离
-- 支持环境变量覆盖
-- 配置验证和错误检查
+# 维护命令
+./github-sync.sh logs           # 查看日志
+./github-sync.sh install        # 安装工具
+./github-sync.sh help           # 显示帮助
+```
 
-### 🔧 后台运行
-- systemd服务集成
-- 守护进程模式
-- 自动重启和错误恢复
+## 服务管理
 
-### 📝 完整日志
-- 多级别日志记录
-- 日志轮转和清理
-- 详细的操作审计
+### OpenWrt系统
 
-### 🛡️ 安全可靠
-- 错误处理和重试机制
-- 网络连接检查
-- 文件权限验证
+```bash
+# 使用procd服务管理
+/etc/init.d/github-sync start
+/etc/init.d/github-sync stop
+/etc/init.d/github-sync restart
+/etc/init.d/github-sync enable   # 开机自启
+```
 
-## 依赖要求
+### 手动管理
 
-### 系统要求
-- Linux系统（支持inotify）
-- Ubuntu 18.04+ / Debian 9+ / CentOS 7+ / RHEL 7+ / Fedora
-- OpenWrt / LEDE / Kwrt（路由器系统）
-- 支持systemd、SysV init、procd或service命令
+```bash
+# 后台运行
+nohup ./github-sync.sh daemon > /dev/null 2>&1 &
 
-### 软件依赖
-- bash 4.0+
-- curl
-- tar
-- jq（用于JSON处理）
-- inotify-tools
+# 查看进程
+ps | grep github-sync
+```
 
-## 文档
+## 故障排除
 
-- [安装指南](docs/installation.md) - 详细的安装步骤
-- [配置说明](docs/configuration.md) - 配置选项和示例
-- [使用说明](docs/usage.md) - 日常使用和管理
+### 常见问题
+
+1. **GitHub连接失败**
+   ```bash
+   # 检查网络连接
+   curl -I https://api.github.com
+   
+   # 验证令牌
+   curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user
+   ```
+
+2. **文件同步失败**
+   ```bash
+   # 查看详细日志
+   ./github-sync.sh logs
+   
+   # 检查文件权限
+   ls -la /path/to/file
+   ```
+
+3. **服务启动失败**
+   ```bash
+   # 检查配置
+   ./github-sync.sh test
+   
+   # 手动运行测试
+   ./github-sync.sh sync
+   ```
+
+### 日志分析
+
+日志文件位置：`./github-sync.log`
+
+```bash
+# 实时查看日志
+tail -f github-sync.log
+
+# 查看错误日志
+grep ERROR github-sync.log
+```
+
+## 高级配置
+
+### 网络代理
+
+```bash
+# 在配置文件中设置代理
+HTTP_PROXY="http://proxy.example.com:8080"
+HTTPS_PROXY="http://proxy.example.com:8080"
+```
+
+### 自定义提交消息
+
+```bash
+# 自定义提交消息模板
+COMMIT_MESSAGE_TEMPLATE="[OpenWrt] Update %s from $(hostname)"
+```
+
+### 性能优化
+
+```bash
+# 调整轮询间隔
+POLL_INTERVAL=60  # 60秒检查一次
+
+# 限制文件大小
+MAX_FILE_SIZE=2097152  # 2MB
+```
+
+## 安全建议
+
+1. **令牌安全**
+   - 定期轮换GitHub令牌
+   - 使用最小权限原则
+   - 不要在公共场所暴露令牌
+
+2. **文件安全**
+   - 避免同步包含密码的文件
+   - 使用私有仓库存储敏感配置
+   - 定期检查同步的文件内容
+
+3. **网络安全**
+   - 确保HTTPS连接
+   - 在不安全网络中使用VPN
 
 ## 贡献
 
-欢迎提交Issue和Pull Request！
+欢迎提交Issue和Pull Request来改进这个工具。
 
 ## 许可证
 
 MIT License
+
+## 更新日志
+
+### v1.0.0
+- 初始版本发布
+- 支持基本的文件同步功能
+- 集成procd服务管理
+- 完善的日志和错误处理
