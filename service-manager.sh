@@ -33,12 +33,25 @@ detect_init_system() {
         echo "openwrt"
     elif [[ -f /etc/init.d/file-sync ]]; then
         echo "sysv"
-    elif [[ -f /usr/local/bin/file-sync-service ]]; then
+    elif [[ -f /usr/local/bin/file-sync-service ]] || [[ -f /usr/bin/file-sync-service ]]; then
         echo "service"
-    elif [[ -f /usr/local/bin/start-file-sync ]]; then
+    elif [[ -f /usr/local/bin/start-file-sync ]] || [[ -f /usr/bin/start-file-sync ]]; then
         echo "manual"
     else
         echo "unknown"
+    fi
+}
+
+# 查找服务脚本路径
+find_service_script() {
+    local script_name="$1"
+
+    if [[ -f "/usr/local/bin/$script_name" ]]; then
+        echo "/usr/local/bin/$script_name"
+    elif [[ -f "/usr/bin/$script_name" ]]; then
+        echo "/usr/bin/$script_name"
+    else
+        echo ""
     fi
 }
 
@@ -62,12 +75,24 @@ start_service() {
             log_info "服务已启动 (SysV init)"
             ;;
         "service")
-            /usr/local/bin/file-sync-service start
-            log_info "服务已启动 (service脚本)"
+            local service_script=$(find_service_script "file-sync-service")
+            if [[ -n "$service_script" ]]; then
+                "$service_script" start
+                log_info "服务已启动 (service脚本)"
+            else
+                log_error "未找到service脚本"
+                return 1
+            fi
             ;;
         "manual")
-            /usr/local/bin/start-file-sync
-            log_info "服务已启动 (手动模式)"
+            local start_script=$(find_service_script "start-file-sync")
+            if [[ -n "$start_script" ]]; then
+                "$start_script"
+                log_info "服务已启动 (手动模式)"
+            else
+                log_error "未找到启动脚本"
+                return 1
+            fi
             ;;
         *)
             log_error "未找到服务配置"
@@ -96,8 +121,14 @@ stop_service() {
             log_info "服务已停止 (SysV init)"
             ;;
         "service")
-            /usr/local/bin/file-sync-service stop
-            log_info "服务已停止 (service脚本)"
+            local service_script=$(find_service_script "file-sync-service")
+            if [[ -n "$service_script" ]]; then
+                "$service_script" stop
+                log_info "服务已停止 (service脚本)"
+            else
+                log_error "未找到service脚本"
+                return 1
+            fi
             ;;
         "manual")
             if [[ -f /file-sync-system/logs/daemon.pid ]]; then
@@ -139,8 +170,14 @@ restart_service() {
             log_info "服务已重启 (SysV init)"
             ;;
         "service")
-            /usr/local/bin/file-sync-service restart
-            log_info "服务已重启 (service脚本)"
+            local service_script=$(find_service_script "file-sync-service")
+            if [[ -n "$service_script" ]]; then
+                "$service_script" restart
+                log_info "服务已重启 (service脚本)"
+            else
+                log_error "未找到service脚本"
+                return 1
+            fi
             ;;
         "manual")
             stop_service
@@ -173,7 +210,13 @@ status_service() {
             service file-sync status
             ;;
         "service")
-            /usr/local/bin/file-sync-service status
+            local service_script=$(find_service_script "file-sync-service")
+            if [[ -n "$service_script" ]]; then
+                "$service_script" status
+            else
+                log_error "未找到service脚本"
+                return 1
+            fi
             ;;
         "manual")
             if [[ -f /file-sync-system/logs/daemon.pid ]]; then

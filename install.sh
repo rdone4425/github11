@@ -223,6 +223,14 @@ copy_files() {
     if [[ -d "$source_dir/bin" ]]; then
         cp -r "$source_dir/bin/"* "$INSTALL_DIR/bin/"
         chmod +x "$INSTALL_DIR/bin/"*
+
+        # 创建无后缀的符号链接
+        if [[ -f "$INSTALL_DIR/bin/file-sync.sh" ]]; then
+            ln -sf "$INSTALL_DIR/bin/file-sync.sh" "$INSTALL_DIR/bin/file-sync"
+        fi
+        if [[ -f "$INSTALL_DIR/bin/file-sync-daemon.sh" ]]; then
+            ln -sf "$INSTALL_DIR/bin/file-sync-daemon.sh" "$INSTALL_DIR/bin/file-sync-daemon"
+        fi
     fi
 
     # 复制库文件
@@ -480,8 +488,19 @@ EOF
 install_service_script() {
     log_step "安装service脚本..."
 
+    # 选择合适的bin目录
+    local bin_dir=""
+    if [[ -d "/usr/local/bin" ]]; then
+        bin_dir="/usr/local/bin"
+    elif [[ -d "/usr/bin" ]]; then
+        bin_dir="/usr/bin"
+    else
+        mkdir -p /usr/local/bin
+        bin_dir="/usr/local/bin"
+    fi
+
     # 创建简单的服务脚本
-    cat > /usr/local/bin/file-sync-service << EOF
+    cat > "$bin_dir/file-sync-service" << EOF
 #!/bin/bash
 # GitHub文件同步系统服务管理脚本
 
@@ -511,9 +530,9 @@ case "\$1" in
 esac
 EOF
 
-    chmod +x /usr/local/bin/file-sync-service
+    chmod +x "$bin_dir/file-sync-service"
 
-    log_info "service脚本安装完成"
+    log_info "service脚本安装完成: $bin_dir/file-sync-service"
     log_info "使用 'file-sync-service start' 启动服务"
 }
 
@@ -521,8 +540,19 @@ EOF
 install_manual_service() {
     log_step "配置手动模式..."
 
+    # 选择合适的bin目录
+    local bin_dir=""
+    if [[ -d "/usr/local/bin" ]]; then
+        bin_dir="/usr/local/bin"
+    elif [[ -d "/usr/bin" ]]; then
+        bin_dir="/usr/bin"
+    else
+        mkdir -p /usr/local/bin
+        bin_dir="/usr/local/bin"
+    fi
+
     # 创建启动脚本
-    cat > /usr/local/bin/start-file-sync << EOF
+    cat > "$bin_dir/start-file-sync" << EOF
 #!/bin/bash
 # GitHub文件同步系统手动启动脚本
 
@@ -533,9 +563,9 @@ echo "服务已在后台启动"
 echo "使用 'file-sync status' 查看状态"
 EOF
 
-    chmod +x /usr/local/bin/start-file-sync
+    chmod +x "$bin_dir/start-file-sync"
 
-    log_info "手动模式配置完成"
+    log_info "手动模式配置完成: $bin_dir/start-file-sync"
     log_info "使用 'start-file-sync' 启动服务"
     log_warn "注意: 系统重启后需要手动启动服务"
 }
@@ -543,11 +573,24 @@ EOF
 # 创建命令行链接
 create_command_link() {
     log_step "创建命令行链接..."
-    
-    # 创建符号链接到系统PATH
-    ln -sf "$INSTALL_DIR/bin/file-sync" /usr/local/bin/file-sync
-    
-    log_info "命令行工具已安装: file-sync"
+
+    # 根据系统选择合适的bin目录
+    local bin_dir=""
+
+    if [[ -d "/usr/local/bin" ]]; then
+        bin_dir="/usr/local/bin"
+    elif [[ -d "/usr/bin" ]]; then
+        bin_dir="/usr/bin"
+    else
+        # 创建/usr/local/bin目录
+        mkdir -p /usr/local/bin
+        bin_dir="/usr/local/bin"
+    fi
+
+    # 创建符号链接
+    ln -sf "$INSTALL_DIR/bin/file-sync" "$bin_dir/file-sync"
+
+    log_info "命令行工具已安装: $bin_dir/file-sync"
 }
 
 # 初始化配置
@@ -560,16 +603,66 @@ initialize_config() {
     log_info "配置初始化完成"
 }
 
-# 显示安装后信息
+# 显示安装后信息并启动主程序
 show_post_install_info() {
     echo ""
-    log_info "GitHub文件同步系统安装完成！"
+    log_info "🎉 GitHub文件同步系统安装完成！"
     echo ""
     echo "安装位置: $INSTALL_DIR"
     echo "服务用户: $SERVICE_USER"
     echo "配置文件: $INSTALL_DIR/config/"
     echo ""
-    echo "下一步操作："
+
+    # 询问是否立即配置和启动
+    echo "现在可以："
+    echo "1. 立即配置并启动系统"
+    echo "2. 稍后手动配置"
+    echo ""
+
+    while true; do
+        read -p "是否现在配置并启动？[Y/n]: " yn
+        case $yn in
+            [Yy]* | "" )
+                start_main_program
+                break
+                ;;
+            [Nn]* )
+                show_manual_steps
+                break
+                ;;
+            * )
+                echo "请输入 y 或 n"
+                ;;
+        esac
+    done
+}
+
+# 启动主程序
+start_main_program() {
+    echo ""
+    log_info "🚀 启动GitHub文件同步系统主程序..."
+    echo ""
+
+    # 检查主程序文件
+    local main_program=""
+    if [[ -f "$INSTALL_DIR/bin/file-sync" ]]; then
+        main_program="$INSTALL_DIR/bin/file-sync"
+    elif [[ -f "$INSTALL_DIR/bin/file-sync.sh" ]]; then
+        main_program="$INSTALL_DIR/bin/file-sync.sh"
+    else
+        log_error "找不到主程序文件"
+        return 1
+    fi
+
+    # 直接运行主程序
+    exec "$main_program"
+}
+
+# 显示手动配置步骤
+show_manual_steps() {
+    echo ""
+    log_info "稍后配置时，请按以下步骤操作："
+    echo ""
     echo "1. 编辑配置文件:"
     echo "   nano $INSTALL_DIR/config/global.conf"
     echo "   nano $INSTALL_DIR/config/paths.conf"
@@ -615,6 +708,9 @@ show_post_install_info() {
     echo "5. 查看日志:"
     echo "   file-sync logs follow"
     echo ""
+    echo "或者直接运行主程序:"
+    echo "   file-sync"
+    echo ""
     echo "更多信息请参考: $INSTALL_DIR/README.md"
 }
 
@@ -653,11 +749,11 @@ uninstall() {
     fi
 
     # 删除服务脚本
-    rm -f /usr/local/bin/file-sync-service
-    rm -f /usr/local/bin/start-file-sync
+    rm -f /usr/local/bin/file-sync-service /usr/bin/file-sync-service
+    rm -f /usr/local/bin/start-file-sync /usr/bin/start-file-sync
 
     # 删除命令链接
-    rm -f /usr/local/bin/file-sync
+    rm -f /usr/local/bin/file-sync /usr/bin/file-sync
 
     # 删除安装目录
     if [[ -d "$INSTALL_DIR" ]]; then

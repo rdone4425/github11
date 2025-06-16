@@ -55,6 +55,12 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/instal
 wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/install.sh | bash
 ```
 
+**安装完成后会自动进入交互式主程序界面，您可以：**
+- 🔧 初始化配置
+- ⚙️ 配置GitHub凭据和监控路径
+- 🚀 启动文件监控
+- 📊 查看系统状态
+
 ### 📦 手动安装
 
 ```bash
