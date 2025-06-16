@@ -69,28 +69,43 @@ check_root() {
 # 检查系统兼容性
 check_system() {
     log_step "检查系统兼容性..."
-    
+
     # 检查操作系统
     if [[ ! -f /etc/os-release ]]; then
         log_error "不支持的操作系统"
         exit 1
     fi
-    
+
     source /etc/os-release
     log_info "检测到系统: $PRETTY_NAME"
-    
-    # 检查systemd
-    if ! command -v systemctl >/dev/null 2>&1; then
-        log_error "系统不支持systemd"
-        exit 1
+
+    # 检查init系统支持
+    local init_supported=false
+
+    if command -v systemctl >/dev/null 2>&1 && [[ -d /etc/systemd ]]; then
+        log_info "检测到systemd支持"
+        init_supported=true
+    elif grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+        log_info "检测到OpenWrt系统，支持procd"
+        init_supported=true
+    elif [[ -d /etc/init.d ]]; then
+        log_info "检测到SysV init支持"
+        init_supported=true
+    elif command -v service >/dev/null 2>&1; then
+        log_info "检测到service命令支持"
+        init_supported=true
     fi
-    
+
+    if [[ "$init_supported" != "true" ]]; then
+        log_warn "未检测到标准init系统，将使用手动模式"
+    fi
+
     # 检查curl
     if ! command -v curl >/dev/null 2>&1; then
         log_error "curl命令不可用，请先安装curl"
         exit 1
     fi
-    
+
     log_info "系统兼容性检查通过"
 }
 
@@ -182,7 +197,18 @@ show_post_install() {
     echo -e "   ${YELLOW}file-sync validate${NC}"
     echo ""
     echo "4. 启动服务："
-    echo -e "   ${YELLOW}systemctl start file-sync${NC}"
+
+    # 根据系统类型显示不同的启动命令
+    if grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+        echo -e "   ${YELLOW}/etc/init.d/file-sync start${NC}"
+        echo -e "   ${YELLOW}/etc/init.d/file-sync enable${NC}  # 开机自启"
+    elif command -v systemctl >/dev/null 2>&1 && [[ -d /etc/systemd ]]; then
+        echo -e "   ${YELLOW}systemctl start file-sync${NC}"
+        echo -e "   ${YELLOW}systemctl enable file-sync${NC}  # 开机自启"
+    else
+        echo -e "   ${YELLOW}service file-sync start${NC}"
+    fi
+
     echo ""
     echo "5. 查看状态："
     echo -e "   ${YELLOW}file-sync status${NC}"

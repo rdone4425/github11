@@ -48,8 +48,11 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system
 ### 🚀 一键安装
 
 ```bash
-# 一键安装命令
+# 通用Linux系统
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
+
+# OpenWrt/LEDE/Kwrt系统专用
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/openwrt-install.sh)
 ```
 
 ### 📦 手动安装
@@ -89,9 +92,11 @@ systemctl start file-sync
 ## 主要特性
 
 ### 🔍 实时文件监控
-- 基于Linux inotify机制
+- 基于Linux inotify机制（优先）
+- 轮询监控模式（inotify不可用时）
 - 支持递归目录监控
 - 智能文件过滤和排除
+- 自动适配OpenWrt等嵌入式系统
 
 ### 🚀 自动GitHub同步
 - 实时检测文件变化
@@ -128,7 +133,8 @@ systemctl start file-sync
 ### 系统要求
 - Linux系统（支持inotify）
 - Ubuntu 18.04+ / Debian 9+ / CentOS 7+ / RHEL 7+ / Fedora
-- 支持systemd、SysV init或service命令
+- OpenWrt / LEDE / Kwrt（路由器系统）
+- 支持systemd、SysV init、procd或service命令
 
 ### 软件依赖
 - bash 4.0+

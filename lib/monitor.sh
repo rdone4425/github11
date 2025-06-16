@@ -29,18 +29,24 @@ MONITOR_PID_FILE="$PROJECT_ROOT/logs/monitor.pid"
 # 初始化监控系统
 init_monitor() {
     log_function_start "init_monitor"
-    
-    # 检查inotify工具
-    if ! command_exists inotifywait; then
-        log_error "inotifywait 命令不存在，请安装 inotify-tools"
-        return 1
+
+    # 检查监控方式
+    if [[ "${FORCE_POLLING:-false}" == "true" ]]; then
+        MONITOR_METHOD="polling"
+        log_info "强制使用轮询监控模式"
+    elif command_exists inotifywait; then
+        MONITOR_METHOD="inotify"
+        log_info "使用inotify监控模式"
+    else
+        MONITOR_METHOD="polling"
+        log_warn "inotifywait不可用，使用轮询监控模式"
     fi
-    
+
     # 创建必要的目录和文件
     ensure_dir "$(dirname "$EVENT_QUEUE_FILE")"
     touch "$EVENT_QUEUE_FILE"
-    
-    log_info "文件监控系统初始化完成"
+
+    log_info "文件监控系统初始化完成 (模式: $MONITOR_METHOD)"
     log_function_end "init_monitor"
     return 0
 }
@@ -125,43 +131,89 @@ start_path_monitoring() {
     local local_path=$(get_path_config "$path_id" "LOCAL_PATH")
     local watch_subdirs=$(get_path_config "$path_id" "WATCH_SUBDIRS" "true")
     local exclude_patterns=$(get_path_config "$path_id" "EXCLUDE_PATTERNS")
-    
+
     if [[ ! -d "$local_path" ]]; then
         log_error "监控路径不存在: $local_path"
         return 1
     fi
-    
-    log_info "开始监控路径: $path_id -> $local_path"
-    
+
+    log_info "开始监控路径: $path_id -> $local_path (模式: $MONITOR_METHOD)"
+
+    if [[ "$MONITOR_METHOD" == "inotify" ]]; then
+        start_inotify_monitoring "$path_id" "$local_path" "$watch_subdirs" "$exclude_patterns"
+    else
+        start_polling_monitoring "$path_id" "$local_path" "$watch_subdirs" "$exclude_patterns"
+    fi
+}
+
+# inotify监控模式
+start_inotify_monitoring() {
+    local path_id="$1"
+    local local_path="$2"
+    local watch_subdirs="$3"
+    local exclude_patterns="$4"
+
     # 构建inotifywait参数
     local inotify_args=("-m" "-e" "create,modify,delete,move")
-    
+
     # 是否递归监控子目录
     if [[ "$watch_subdirs" == "true" ]]; then
         inotify_args+=("-r")
     fi
-    
+
     # 添加排除模式
     if [[ -n "$exclude_patterns" ]]; then
         for pattern in $exclude_patterns; do
             inotify_args+=("--exclude" "$pattern")
         done
     fi
-    
+
     # 添加全局排除模式
     if [[ -n "$EXCLUDE_PATTERNS" ]]; then
         for pattern in $EXCLUDE_PATTERNS; do
             inotify_args+=("--exclude" "$pattern")
         done
     fi
-    
+
     # 添加监控路径
     inotify_args+=("$local_path")
-    
+
     # 启动inotifywait并处理事件
     inotifywait "${inotify_args[@]}" --format '%w%f|%e|%T' --timefmt '%Y-%m-%d %H:%M:%S' | \
     while IFS='|' read -r file_path event_type timestamp; do
         process_file_event "$path_id" "$file_path" "$event_type" "$timestamp"
+    done
+}
+
+# 轮询监控模式
+start_polling_monitoring() {
+    local path_id="$1"
+    local local_path="$2"
+    local watch_subdirs="$3"
+    local exclude_patterns="$4"
+
+    # 创建文件状态缓存目录
+    local cache_dir="$PROJECT_ROOT/logs/cache"
+    local cache_file="$cache_dir/${path_id}.cache"
+    ensure_dir "$cache_dir"
+
+    log_info "启动轮询监控: $local_path (间隔: ${POLLING_INTERVAL:-10}秒)"
+
+    # 初始化文件状态
+    create_file_snapshot "$local_path" "$watch_subdirs" "$exclude_patterns" > "$cache_file"
+
+    while true; do
+        sleep "${POLLING_INTERVAL:-10}"
+
+        # 创建新的文件快照
+        local new_snapshot="/tmp/snapshot_${path_id}_$$"
+        create_file_snapshot "$local_path" "$watch_subdirs" "$exclude_patterns" > "$new_snapshot"
+
+        # 比较文件变化
+        compare_snapshots "$path_id" "$cache_file" "$new_snapshot"
+
+        # 更新缓存
+        mv "$new_snapshot" "$cache_file"
     done
 }
 
@@ -321,6 +373,102 @@ get_monitor_status() {
     else
         echo "监控状态: 未运行"
     fi
+}
+
+# 创建文件快照
+create_file_snapshot() {
+    local local_path="$1"
+    local watch_subdirs="$2"
+    local exclude_patterns="$3"
+
+    local find_args=("$local_path")
+
+    # 设置查找深度
+    if [[ "$watch_subdirs" != "true" ]]; then
+        find_args+=("-maxdepth" "1")
+    fi
+
+    find_args+=("-type" "f")
+
+    # 执行查找并生成文件信息
+    find "${find_args[@]}" 2>/dev/null | while read -r file; do
+        # 检查是否应该排除
+        if should_exclude_file "$file"; then
+            continue
+        fi
+
+        # 检查路径特定的排除模式
+        local should_skip=false
+        if [[ -n "$exclude_patterns" ]]; then
+            local filename=$(basename "$file")
+            for pattern in $exclude_patterns; do
+                if [[ "$filename" == $pattern ]]; then
+                    should_skip=true
+                    break
+                fi
+            done
+        fi
+
+        if [[ "$should_skip" == "true" ]]; then
+            continue
+        fi
+
+        # 获取文件信息
+        local mtime=$(stat -c %Y "$file" 2>/dev/null || echo "0")
+        local size=$(stat -c %s "$file" 2>/dev/null || echo "0")
+
+        echo "$file|$mtime|$size"
+    done | sort
+}
+
+# 比较文件快照
+compare_snapshots() {
+    local path_id="$1"
+    local old_snapshot="$2"
+    local new_snapshot="$3"
+    local timestamp=$(get_timestamp)
+
+    # 创建临时文件用于比较
+    local old_files="/tmp/old_files_$$"
+    local new_files="/tmp/new_files_$$"
+    local old_info="/tmp/old_info_$$"
+    local new_info="/tmp/new_info_$$"
+
+    # 提取文件列表和信息
+    if [[ -f "$old_snapshot" ]]; then
+        cut -d'|' -f1 "$old_snapshot" | sort > "$old_files"
+        cp "$old_snapshot" "$old_info"
+    else
+        touch "$old_files" "$old_info"
+    fi
+
+    cut -d'|' -f1 "$new_snapshot" | sort > "$new_files"
+    cp "$new_snapshot" "$new_info"
+
+    # 检查新增文件
+    comm -13 "$old_files" "$new_files" | while read -r file; do
+        [[ -n "$file" ]] && process_file_event "$path_id" "$file" "CREATE" "$timestamp"
+    done
+
+    # 检查删除文件
+    comm -23 "$old_files" "$new_files" | while read -r file; do
+        [[ -n "$file" ]] && process_file_event "$path_id" "$file" "DELETE" "$timestamp"
+    done
+
+    # 检查修改文件
+    comm -12 "$old_files" "$new_files" | while read -r file; do
+        if [[ -n "$file" ]]; then
+            local old_info_line=$(grep "^$file|" "$old_info" 2>/dev/null || echo "")
+            local new_info_line=$(grep "^$file|" "$new_info" 2>/dev/null || echo "")
+
+            if [[ "$old_info_line" != "$new_info_line" ]]; then
+                process_file_event "$path_id" "$file" "MODIFY" "$timestamp"
+            fi
+        fi
+    done
+
+    # 清理临时文件
+    rm -f "$old_files" "$new_files" "$old_info" "$new_info"
 }
 
 # 重启监控

@@ -132,15 +132,18 @@ check_required_commands() {
 check_optional_commands() {
     log_check "检查可选命令..."
 
-    local optional_commands=("jq" "inotifywait")
+    if command -v jq >/dev/null 2>&1; then
+        log_info "jq: 可用"
+    else
+        log_warn "jq: 不可用 (安装时会自动安装)"
+    fi
 
-    for cmd in "${optional_commands[@]}"; do
-        if command -v "$cmd" >/dev/null 2>&1; then
-            log_info "$cmd: 可用"
-        else
-            log_warn "$cmd: 不可用 (安装时会自动安装)"
-        fi
-    done
+    if command -v inotifywait >/dev/null 2>&1; then
+        log_info "inotifywait: 可用 (将使用实时监控)"
+    else
+        log_warn "inotifywait: 不可用 (将使用轮询监控)"
+        echo "  - 轮询模式同样有效，只是响应稍慢"
+    fi
 
     return 0
 }
