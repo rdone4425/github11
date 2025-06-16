@@ -38,12 +38,17 @@ file-sync-system/
 
 ## 快速开始
 
+### 🔍 系统兼容性检查
+
+```bash
+# 检查系统是否支持安装
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
+```
+
 ### 🚀 一键安装
 
 ```bash
 # 一键安装命令
-```
-```bash
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
 ```
 
@@ -58,18 +63,25 @@ cd github11
 sudo ./install.sh
 
 # 配置GitHub凭据
-sudo nano /opt/file-sync-system/config/global.conf
+nano /file-sync-system/config/global.conf
 
 # 配置监控路径
-sudo nano /opt/file-sync-system/config/paths.conf
+nano /file-sync-system/config/paths.conf
 
 # 验证配置
 file-sync validate
 
 # 启动服务
-sudo systemctl start file-sync
+systemctl start file-sync
 ```
 
+### 演示模式
+
+运行演示脚本了解系统功能：
+
+```bash
+./demo.sh
+```
 
 详细说明请参考 [安装指南](docs/installation.md)。
 
@@ -113,8 +125,9 @@ sudo systemctl start file-sync
 ## 依赖要求
 
 ### 系统要求
-- Linux系统（支持inotify和systemd）
-- Ubuntu 18.04+ / Debian 9+ / CentOS 7+ / RHEL 7+
+- Linux系统（支持inotify）
+- Ubuntu 18.04+ / Debian 9+ / CentOS 7+ / RHEL 7+ / Fedora
+- 支持systemd、SysV init或service命令
 
 ### 软件依赖
 - bash 4.0+

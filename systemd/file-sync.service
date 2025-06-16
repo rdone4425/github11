@@ -1,20 +1,20 @@
 [Unit]
 Description=GitHub File Sync Service
-Documentation=https://github.com/your-repo/file-sync-system
+Documentation=https://github.com/rdone4425/github11
 After=network-online.target
 Wants=network-online.target
-RequiresMountsFor=/home
+RequiresMountsFor=/file-sync-system
 
 [Service]
 Type=forking
-User=file-sync
-Group=file-sync
-WorkingDirectory=/opt/file-sync-system
-ExecStartPre=/opt/file-sync-system/bin/file-sync validate
-ExecStart=/opt/file-sync-system/bin/file-sync-daemon start
-ExecStop=/opt/file-sync-system/bin/file-sync-daemon stop
-ExecReload=/opt/file-sync-system/bin/file-sync-daemon reload
-PIDFile=/opt/file-sync-system/logs/daemon.pid
+User=root
+Group=root
+WorkingDirectory=/file-sync-system
+ExecStartPre=/file-sync-system/bin/file-sync validate
+ExecStart=/file-sync-system/bin/file-sync-daemon start
+ExecStop=/file-sync-system/bin/file-sync-daemon stop
+ExecReload=/file-sync-system/bin/file-sync-daemon reload
+PIDFile=/file-sync-system/logs/daemon.pid
 Restart=always
 RestartSec=10
 RestartPreventExitStatus=2
@@ -22,9 +22,7 @@ RestartPreventExitStatus=2
 # 安全设置
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/file-sync-system/logs /opt/file-sync-system/config
+ReadWritePaths=/file-sync-system/logs /file-sync-system/config
 
 # 资源限制
 LimitNOFILE=65536

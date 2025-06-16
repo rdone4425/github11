@@ -14,9 +14,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 配置变量
-INSTALL_DIR="/opt/file-sync-system"
-SERVICE_USER="file-sync"
-SERVICE_GROUP="file-sync"
+INSTALL_DIR="/file-sync-system"
+SERVICE_USER="root"
+SERVICE_GROUP="root"
 GITHUB_REPO="rdone4425/github11"
 GITHUB_BRANCH="main"
 TEMP_DIR="/tmp/file-sync-install-$$"
@@ -51,22 +51,31 @@ check_root() {
 # 检查系统兼容性
 check_system() {
     log_step "检查系统兼容性..."
-    
+
     # 检查操作系统
     if [[ ! -f /etc/os-release ]]; then
         log_error "不支持的操作系统"
         exit 1
     fi
-    
+
     source /etc/os-release
     log_info "检测到系统: $PRETTY_NAME"
-    
-    # 检查systemd
-    if ! command -v systemctl >/dev/null 2>&1; then
-        log_error "系统不支持systemd"
-        exit 1
+
+    # 检查init系统
+    if command -v systemctl >/dev/null 2>&1 && [[ -d /etc/systemd ]]; then
+        INIT_SYSTEM="systemd"
+        log_info "检测到systemd支持"
+    elif [[ -f /etc/init.d ]]; then
+        INIT_SYSTEM="sysv"
+        log_info "检测到SysV init支持"
+    elif command -v service >/dev/null 2>&1; then
+        INIT_SYSTEM="service"
+        log_info "检测到service命令支持"
+    else
+        INIT_SYSTEM="manual"
+        log_warn "未检测到标准init系统，将使用手动模式"
     fi
-    
+
     # 检查包管理器
     if command -v apt-get >/dev/null 2>&1; then
         PACKAGE_MANAGER="apt"
@@ -78,7 +87,7 @@ check_system() {
         log_error "不支持的包管理器"
         exit 1
     fi
-    
+
     log_info "使用包管理器: $PACKAGE_MANAGER"
 }
 
@@ -102,16 +111,12 @@ install_dependencies() {
     log_info "依赖安装完成"
 }
 
-# 创建系统用户
+# 创建系统用户（使用root用户）
 create_system_user() {
-    log_step "创建系统用户..."
-    
-    if ! id "$SERVICE_USER" &>/dev/null; then
-        useradd -r -s /bin/false -d "$INSTALL_DIR" -c "File Sync Service" "$SERVICE_USER"
-        log_info "创建用户: $SERVICE_USER"
-    else
-        log_info "用户已存在: $SERVICE_USER"
-    fi
+    log_step "配置运行用户..."
+
+    # 使用root用户运行，无需创建新用户
+    log_info "使用root用户运行服务"
 }
 
 # 下载源码
@@ -194,31 +199,58 @@ copy_files() {
 # 设置权限
 set_permissions() {
     log_step "设置文件权限..."
-    
-    # 设置目录权限
+
+    # 设置目录权限（root用户拥有）
     chown -R "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR"
-    
+
     # 设置可执行文件权限
     chmod 755 "$INSTALL_DIR/bin/"*
-    
+
     # 设置配置文件权限
     chmod 644 "$INSTALL_DIR/config/"*
-    
+
     # 设置日志目录权限
     chmod 755 "$INSTALL_DIR/logs"
-    
+
     log_info "权限设置完成"
+}
+
+# 安装系统服务
+install_system_service() {
+    log_step "安装系统服务..."
+
+    case "$INIT_SYSTEM" in
+        "systemd")
+            install_systemd_service
+            ;;
+        "sysv")
+            install_sysv_service
+            ;;
+        "service")
+            install_service_script
+            ;;
+        "manual")
+            install_manual_service
+            ;;
+        *)
+            log_error "不支持的init系统: $INIT_SYSTEM"
+            return 1
+            ;;
+    esac
 }
 
 # 安装systemd服务
 install_systemd_service() {
     log_step "安装systemd服务..."
-    
+
+    # 确保systemd目录存在
+    mkdir -p /etc/systemd/system
+
     # 创建服务文件
     cat > /etc/systemd/system/file-sync.service << EOF
 [Unit]
 Description=GitHub File Sync Service
-Documentation=https://github.com/your-repo/file-sync-system
+Documentation=https://github.com/rdone4425/github11
 After=network-online.target
 Wants=network-online.target
 RequiresMountsFor=$INSTALL_DIR
@@ -236,13 +268,6 @@ PIDFile=$INSTALL_DIR/logs/daemon.pid
 Restart=always
 RestartSec=10
 RestartPreventExitStatus=2
-
-# 安全设置
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=$INSTALL_DIR/logs $INSTALL_DIR/config
 
 # 资源限制
 LimitNOFILE=65536
@@ -265,6 +290,157 @@ EOF
     log_info "systemd服务安装完成"
 }
 
+# 安装SysV init服务
+install_sysv_service() {
+    log_step "安装SysV init服务..."
+
+    # 创建init脚本
+    cat > /etc/init.d/file-sync << 'EOF'
+#!/bin/bash
+# file-sync        GitHub文件同步系统
+# chkconfig: 35 80 20
+# description: GitHub File Sync Service
+
+. /etc/rc.d/init.d/functions
+
+USER="root"
+DAEMON="file-sync-daemon"
+ROOT_DIR="/file-sync-system"
+
+SERVER="$ROOT_DIR/bin/$DAEMON"
+LOCK_FILE="/var/lock/subsys/file-sync"
+
+start() {
+    echo -n $"Starting $DAEMON: "
+    daemon --user "$USER" --pidfile="$ROOT_DIR/logs/daemon.pid" "$SERVER" start
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $LOCK_FILE
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Shutting down $DAEMON: "
+    pid=`ps -aefw | grep "$DAEMON" | grep -v " grep " | awk '{print $2}'`
+    kill -9 $pid > /dev/null 2>&1
+    [ $? -eq 0 ] && echo_success || echo_failure
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $LOCK_FILE
+    return $RETVAL
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+    if [ -f $LOCK_FILE ]; then
+        echo "$DAEMON is running."
+    else
+        echo "$DAEMON is stopped."
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    restart)
+        restart
+        ;;
+    *)
+        echo "Usage: {start|stop|status|restart}"
+        exit 1
+        ;;
+esac
+
+exit $?
+EOF
+
+    chmod +x /etc/init.d/file-sync
+
+    # 添加到启动项
+    if command -v chkconfig >/dev/null 2>&1; then
+        chkconfig --add file-sync
+        chkconfig file-sync on
+    elif command -v update-rc.d >/dev/null 2>&1; then
+        update-rc.d file-sync defaults
+    fi
+
+    log_info "SysV init服务安装完成"
+}
+
+# 安装service脚本
+install_service_script() {
+    log_step "安装service脚本..."
+
+    # 创建简单的服务脚本
+    cat > /usr/local/bin/file-sync-service << EOF
+#!/bin/bash
+# GitHub文件同步系统服务管理脚本
+
+DAEMON_DIR="/file-sync-system"
+DAEMON_SCRIPT="\$DAEMON_DIR/bin/file-sync-daemon"
+
+case "\$1" in
+    start)
+        echo "启动file-sync服务..."
+        \$DAEMON_SCRIPT start
+        ;;
+    stop)
+        echo "停止file-sync服务..."
+        \$DAEMON_SCRIPT stop
+        ;;
+    restart)
+        echo "重启file-sync服务..."
+        \$DAEMON_SCRIPT restart
+        ;;
+    status)
+        \$DAEMON_SCRIPT status
+        ;;
+    *)
+        echo "用法: \$0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+EOF
+
+    chmod +x /usr/local/bin/file-sync-service
+
+    log_info "service脚本安装完成"
+    log_info "使用 'file-sync-service start' 启动服务"
+}
+
+# 手动模式安装
+install_manual_service() {
+    log_step "配置手动模式..."
+
+    # 创建启动脚本
+    cat > /usr/local/bin/start-file-sync << EOF
+#!/bin/bash
+# GitHub文件同步系统手动启动脚本
+
+echo "启动GitHub文件同步系统..."
+cd /file-sync-system
+nohup ./bin/file-sync-daemon start > /dev/null 2>&1 &
+echo "服务已在后台启动"
+echo "使用 'file-sync status' 查看状态"
+EOF
+
+    chmod +x /usr/local/bin/start-file-sync
+
+    log_info "手动模式配置完成"
+    log_info "使用 'start-file-sync' 启动服务"
+    log_warn "注意: 系统重启后需要手动启动服务"
+}
+
 # 创建命令行链接
 create_command_link() {
     log_step "创建命令行链接..."
@@ -278,10 +454,10 @@ create_command_link() {
 # 初始化配置
 initialize_config() {
     log_step "初始化配置..."
-    
-    # 运行初始化
-    sudo -u "$SERVICE_USER" "$INSTALL_DIR/bin/file-sync" init
-    
+
+    # 运行初始化（以root用户运行）
+    "$INSTALL_DIR/bin/file-sync" init
+
     log_info "配置初始化完成"
 }
 
@@ -296,17 +472,39 @@ show_post_install_info() {
     echo ""
     echo "下一步操作："
     echo "1. 编辑配置文件:"
-    echo "   sudo nano $INSTALL_DIR/config/global.conf"
-    echo "   sudo nano $INSTALL_DIR/config/paths.conf"
+    echo "   nano $INSTALL_DIR/config/global.conf"
+    echo "   nano $INSTALL_DIR/config/paths.conf"
     echo ""
     echo "2. 验证配置:"
     echo "   file-sync validate"
     echo ""
     echo "3. 启动服务:"
-    echo "   sudo systemctl start file-sync"
-    echo ""
-    echo "4. 查看状态:"
-    echo "   sudo systemctl status file-sync"
+    case "$INIT_SYSTEM" in
+        "systemd")
+            echo "   systemctl start file-sync"
+            echo ""
+            echo "4. 查看状态:"
+            echo "   systemctl status file-sync"
+            ;;
+        "sysv")
+            echo "   service file-sync start"
+            echo ""
+            echo "4. 查看状态:"
+            echo "   service file-sync status"
+            ;;
+        "service")
+            echo "   file-sync-service start"
+            echo ""
+            echo "4. 查看状态:"
+            echo "   file-sync-service status"
+            ;;
+        "manual")
+            echo "   start-file-sync"
+            echo ""
+            echo "4. 查看状态:"
+            echo "   file-sync status"
+            ;;
+    esac
     echo "   file-sync status"
     echo ""
     echo "5. 查看日志:"
@@ -326,13 +524,26 @@ cleanup_temp() {
 uninstall() {
     log_step "卸载GitHub文件同步系统..."
 
-    # 停止并禁用服务
-    systemctl stop file-sync.service 2>/dev/null || true
-    systemctl disable file-sync.service 2>/dev/null || true
+    # 检测当前init系统并停止服务
+    if command -v systemctl >/dev/null 2>&1 && [[ -f /etc/systemd/system/file-sync.service ]]; then
+        systemctl stop file-sync.service 2>/dev/null || true
+        systemctl disable file-sync.service 2>/dev/null || true
+        rm -f /etc/systemd/system/file-sync.service
+        systemctl daemon-reload
+    elif [[ -f /etc/init.d/file-sync ]]; then
+        service file-sync stop 2>/dev/null || true
+        if command -v chkconfig >/dev/null 2>&1; then
+            chkconfig file-sync off
+            chkconfig --del file-sync
+        elif command -v update-rc.d >/dev/null 2>&1; then
+            update-rc.d -f file-sync remove
+        fi
+        rm -f /etc/init.d/file-sync
+    fi
 
-    # 删除服务文件
-    rm -f /etc/systemd/system/file-sync.service
-    systemctl daemon-reload
+    # 删除服务脚本
+    rm -f /usr/local/bin/file-sync-service
+    rm -f /usr/local/bin/start-file-sync
 
     # 删除命令链接
     rm -f /usr/local/bin/file-sync
@@ -342,10 +553,8 @@ uninstall() {
         rm -rf "$INSTALL_DIR"
     fi
 
-    # 删除用户
-    if id "$SERVICE_USER" &>/dev/null; then
-        userdel "$SERVICE_USER" 2>/dev/null || true
-    fi
+    # 无需删除root用户
+    log_info "保留root用户"
 
     log_info "卸载完成"
 }
@@ -390,7 +599,7 @@ main() {
             create_install_directory
             copy_files
             set_permissions
-            install_systemd_service
+            install_system_service
             create_command_link
             initialize_config
             show_post_install_info
