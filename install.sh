@@ -65,9 +65,12 @@ check_system() {
     if command -v systemctl >/dev/null 2>&1 && [[ -d /etc/systemd ]]; then
         INIT_SYSTEM="systemd"
         log_info "检测到systemd支持"
-    elif [[ -f /etc/init.d ]]; then
+    elif [[ -f /etc/init.d ]] || [[ -d /etc/init.d ]]; then
         INIT_SYSTEM="sysv"
         log_info "检测到SysV init支持"
+    elif command -v procd >/dev/null 2>&1 || [[ -d /etc/init.d ]] && grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+        INIT_SYSTEM="openwrt"
+        log_info "检测到OpenWrt/procd支持"
     elif command -v service >/dev/null 2>&1; then
         INIT_SYSTEM="service"
         log_info "检测到service命令支持"
@@ -77,7 +80,9 @@ check_system() {
     fi
 
     # 检查包管理器
-    if command -v apt-get >/dev/null 2>&1; then
+    if command -v opkg >/dev/null 2>&1; then
+        PACKAGE_MANAGER="opkg"
+    elif command -v apt-get >/dev/null 2>&1; then
         PACKAGE_MANAGER="apt"
     elif command -v yum >/dev/null 2>&1; then
         PACKAGE_MANAGER="yum"
@@ -94,20 +99,34 @@ check_system() {
 # 安装依赖
 install_dependencies() {
     log_step "安装系统依赖..."
-    
+
     case "$PACKAGE_MANAGER" in
+        "opkg")
+            opkg update
+            # OpenWrt通常已包含curl和tar，只需安装缺少的包
+            opkg install curl ca-certificates
+            # 检查是否需要安装其他包
+            if ! command -v jq >/dev/null 2>&1; then
+                log_warn "jq不可用，将使用简化的JSON处理"
+            fi
+            # OpenWrt可能没有inotify-tools，使用内置的inotifywait
+            if ! command -v inotifywait >/dev/null 2>&1; then
+                log_warn "inotify-tools不可用，尝试安装..."
+                opkg install inotify-tools 2>/dev/null || log_warn "无法安装inotify-tools，将使用轮询模式"
+            fi
+            ;;
         "apt")
             apt-get update
-            apt-get install -y curl jq git inotify-tools bash
+            apt-get install -y curl jq inotify-tools bash tar
             ;;
         "yum")
-            yum install -y curl jq git inotify-tools bash
+            yum install -y curl jq inotify-tools bash tar
             ;;
         "dnf")
-            dnf install -y curl jq git inotify-tools bash
+            dnf install -y curl jq inotify-tools bash tar
             ;;
     esac
-    
+
     log_info "依赖安装完成"
 }
 
@@ -127,21 +146,24 @@ download_source() {
     mkdir -p "$TEMP_DIR"
     cd "$TEMP_DIR"
 
-    # 下载源码
-    if command -v git >/dev/null 2>&1; then
-        log_info "使用git克隆仓库..."
-        git clone "https://github.com/$GITHUB_REPO.git" file-sync-system
-        cd file-sync-system
-        git checkout "$GITHUB_BRANCH"
+    # 使用curl下载压缩包
+    log_info "下载源码压缩包..."
+    if curl -L "https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz" -o source.tar.gz; then
+        log_info "源码下载成功"
     else
-        log_info "使用curl下载压缩包..."
-        curl -L "https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz" -o source.tar.gz
-        tar -xzf source.tar.gz
-        mv "github11-$GITHUB_BRANCH" file-sync-system
-        cd file-sync-system
+        log_error "源码下载失败"
+        exit 1
     fi
 
-    log_info "源码下载完成"
+    # 解压源码
+    log_info "解压源码..."
+    if tar -xzf source.tar.gz; then
+        mv "github11-$GITHUB_BRANCH" file-sync-system
+        log_info "源码解压完成"
+    else
+        log_error "源码解压失败"
+        exit 1
+    fi
 }
 
 # 创建安装目录
@@ -225,6 +247,9 @@ install_system_service() {
             ;;
         "sysv")
             install_sysv_service
+            ;;
+        "openwrt")
+            install_openwrt_service
             ;;
         "service")
             install_service_script
@@ -377,6 +402,50 @@ EOF
     log_info "SysV init服务安装完成"
 }
 
+# 安装OpenWrt procd服务
+install_openwrt_service() {
+    log_step "安装OpenWrt procd服务..."
+
+    # 创建procd init脚本
+    cat > /etc/init.d/file-sync << 'EOF'
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+
+USE_PROCD=1
+PROG="/file-sync-system/bin/file-sync-daemon"
+PIDFILE="/file-sync-system/logs/daemon.pid"
+
+start_service() {
+    procd_open_instance
+    procd_set_param command $PROG start
+    procd_set_param pidfile $PIDFILE
+    procd_set_param respawn
+    procd_set_param user root
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+stop_service() {
+    $PROG stop
+}
+
+restart() {
+    stop
+    start
+}
+EOF
+
+    chmod +x /etc/init.d/file-sync
+
+    # 启用服务
+    /etc/init.d/file-sync enable
+
+    log_info "OpenWrt procd服务安装完成"
+}
+
 # 安装service脚本
 install_service_script() {
     log_step "安装service脚本..."
@@ -492,6 +561,12 @@ show_post_install_info() {
             echo "4. 查看状态:"
             echo "   service file-sync status"
             ;;
+        "openwrt")
+            echo "   /etc/init.d/file-sync start"
+            echo ""
+            echo "4. 查看状态:"
+            echo "   /etc/init.d/file-sync status"
+            ;;
         "service")
             echo "   file-sync-service start"
             echo ""
@@ -531,12 +606,18 @@ uninstall() {
         rm -f /etc/systemd/system/file-sync.service
         systemctl daemon-reload
     elif [[ -f /etc/init.d/file-sync ]]; then
-        service file-sync stop 2>/dev/null || true
-        if command -v chkconfig >/dev/null 2>&1; then
-            chkconfig file-sync off
-            chkconfig --del file-sync
-        elif command -v update-rc.d >/dev/null 2>&1; then
-            update-rc.d -f file-sync remove
+        # 检查是否为OpenWrt系统
+        if grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+            /etc/init.d/file-sync stop 2>/dev/null || true
+            /etc/init.d/file-sync disable 2>/dev/null || true
+        else
+            service file-sync stop 2>/dev/null || true
+            if command -v chkconfig >/dev/null 2>&1; then
+                chkconfig file-sync off
+                chkconfig --del file-sync
+            elif command -v update-rc.d >/dev/null 2>&1; then
+                update-rc.d -f file-sync remove
+            fi
         fi
         rm -f /etc/init.d/file-sync
     fi

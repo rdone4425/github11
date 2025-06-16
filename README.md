@@ -55,9 +55,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-
 ### 📦 手动安装
 
 ```bash
-# 克隆项目
-git clone https://github.com/rdone4425/github11.git
-cd github11
+# 下载项目
+curl -L https://github.com/rdone4425/github11/archive/main.tar.gz -o github11.tar.gz
+tar -xzf github11.tar.gz
+cd github11-main
 
 # 运行安装脚本
 sudo ./install.sh
@@ -131,8 +132,8 @@ systemctl start file-sync
 
 ### 软件依赖
 - bash 4.0+
-- git
 - curl
+- tar
 - jq（用于JSON处理）
 - inotify-tools
 

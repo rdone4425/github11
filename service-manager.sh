@@ -29,6 +29,8 @@ log_error() {
 detect_init_system() {
     if command -v systemctl >/dev/null 2>&1 && [[ -f /etc/systemd/system/file-sync.service ]]; then
         echo "systemd"
+    elif [[ -f /etc/init.d/file-sync ]] && grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+        echo "openwrt"
     elif [[ -f /etc/init.d/file-sync ]]; then
         echo "sysv"
     elif [[ -f /usr/local/bin/file-sync-service ]]; then
@@ -50,6 +52,10 @@ start_service() {
         "systemd")
             systemctl start file-sync
             log_info "服务已启动 (systemd)"
+            ;;
+        "openwrt")
+            /etc/init.d/file-sync start
+            log_info "服务已启动 (OpenWrt procd)"
             ;;
         "sysv")
             service file-sync start
@@ -80,6 +86,10 @@ stop_service() {
         "systemd")
             systemctl stop file-sync
             log_info "服务已停止 (systemd)"
+            ;;
+        "openwrt")
+            /etc/init.d/file-sync stop
+            log_info "服务已停止 (OpenWrt procd)"
             ;;
         "sysv")
             service file-sync stop
@@ -120,6 +130,10 @@ restart_service() {
             systemctl restart file-sync
             log_info "服务已重启 (systemd)"
             ;;
+        "openwrt")
+            /etc/init.d/file-sync restart
+            log_info "服务已重启 (OpenWrt procd)"
+            ;;
         "sysv")
             service file-sync restart
             log_info "服务已重启 (SysV init)"
@@ -151,6 +165,9 @@ status_service() {
     case "$init_system" in
         "systemd")
             systemctl status file-sync --no-pager
+            ;;
+        "openwrt")
+            /etc/init.d/file-sync status
             ;;
         "sysv")
             service file-sync status

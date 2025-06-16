@@ -52,8 +52,12 @@ check_os() {
     source /etc/os-release
     log_info "操作系统: $PRETTY_NAME"
     
-    # 检查是否为Linux
-    if [[ "$ID" != "ubuntu" && "$ID" != "debian" && "$ID" != "centos" && "$ID" != "rhel" && "$ID" != "fedora" ]]; then
+    # 检查是否为支持的Linux发行版
+    if [[ "$ID" == "ubuntu" || "$ID" == "debian" || "$ID" == "centos" || "$ID" == "rhel" || "$ID" == "fedora" ]]; then
+        log_info "支持的Linux发行版"
+    elif grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null; then
+        log_info "检测到OpenWrt系统"
+    else
         log_warn "未测试的Linux发行版，可能需要手动调整"
     fi
     
@@ -76,10 +80,14 @@ check_permissions() {
 # 检查init系统
 check_init_system() {
     log_check "检查init系统..."
-    
+
     if command -v systemctl >/dev/null 2>&1 && [[ -d /etc/systemd ]]; then
         log_info "支持systemd"
         echo "  - 将使用systemd服务管理"
+        return 0
+    elif grep -q "OpenWrt\|LEDE\|Kwrt" /etc/os-release 2>/dev/null && [[ -d /etc/init.d ]]; then
+        log_info "支持OpenWrt procd"
+        echo "  - 将使用OpenWrt procd服务管理"
         return 0
     elif [[ -d /etc/init.d ]]; then
         log_info "支持SysV init"
@@ -99,10 +107,10 @@ check_init_system() {
 # 检查必需命令
 check_required_commands() {
     log_check "检查必需命令..."
-    
+
     local missing_commands=()
-    local required_commands=("bash" "curl" "mkdir" "chmod" "chown")
-    
+    local required_commands=("bash" "curl" "tar" "mkdir" "chmod" "chown")
+
     for cmd in "${required_commands[@]}"; do
         if command -v "$cmd" >/dev/null 2>&1; then
             log_info "$cmd: 可用"
@@ -111,21 +119,21 @@ check_required_commands() {
             missing_commands+=("$cmd")
         fi
     done
-    
+
     if [[ ${#missing_commands[@]} -gt 0 ]]; then
         log_error "缺少必需命令: ${missing_commands[*]}"
         return 1
     fi
-    
+
     return 0
 }
 
 # 检查可选命令
 check_optional_commands() {
     log_check "检查可选命令..."
-    
-    local optional_commands=("git" "jq" "inotifywait")
-    
+
+    local optional_commands=("jq" "inotifywait")
+
     for cmd in "${optional_commands[@]}"; do
         if command -v "$cmd" >/dev/null 2>&1; then
             log_info "$cmd: 可用"
@@ -133,15 +141,18 @@ check_optional_commands() {
             log_warn "$cmd: 不可用 (安装时会自动安装)"
         fi
     done
-    
+
     return 0
 }
 
 # 检查包管理器
 check_package_manager() {
     log_check "检查包管理器..."
-    
-    if command -v apt-get >/dev/null 2>&1; then
+
+    if command -v opkg >/dev/null 2>&1; then
+        log_info "包管理器: opkg (OpenWrt)"
+        return 0
+    elif command -v apt-get >/dev/null 2>&1; then
         log_info "包管理器: apt (Debian/Ubuntu)"
         return 0
     elif command -v yum >/dev/null 2>&1; then
