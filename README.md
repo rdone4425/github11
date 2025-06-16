@@ -51,9 +51,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system
 # 下载并运行（推荐）
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/file-sync.sh)
 
-chmod +x file-sync.sh
-sudo ./file-sync.sh install
 
+```bash
 # 或者直接运行
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/file-sync.sh) install
 ```
