@@ -39,28 +39,51 @@ command_exists() {
 # 检查必需的依赖
 check_dependencies() {
     local missing_deps=()
-    
-    # 检查必需的命令
-    local required_commands=("git" "curl" "jq" "inotifywait")
-    
+    local warnings=()
+
+    # 检查必需的命令（只检查基础命令）
+    local required_commands=("bash" "tar")
+
     for cmd in "${required_commands[@]}"; do
         if ! command_exists "$cmd"; then
             missing_deps+=("$cmd")
         fi
     done
-    
+
+    # 检查下载工具（curl或wget至少要有一个）
+    if ! command_exists "curl" && ! command_exists "wget"; then
+        missing_deps+=("curl或wget")
+    fi
+
+    # 检查可选依赖
+    if ! command_exists "jq"; then
+        warnings+=("jq不可用，将使用简化JSON处理")
+    fi
+
+    if ! command_exists "inotifywait"; then
+        warnings+=("inotify-tools不可用，将使用轮询监控模式")
+    fi
+
+    # 显示警告
+    for warning in "${warnings[@]}"; do
+        log_warn "$warning"
+    done
+
+    # 检查是否有缺失的必需依赖
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         log_error "缺少必需的依赖: ${missing_deps[*]}"
         log_info "请安装缺少的依赖："
         for dep in "${missing_deps[@]}"; do
             case "$dep" in
-                "inotifywait")
-                    log_info "  - Ubuntu/Debian: sudo apt-get install inotify-tools"
-                    log_info "  - CentOS/RHEL: sudo yum install inotify-tools"
+                "curl或wget")
+                    log_info "  - Ubuntu/Debian: sudo apt-get install curl wget"
+                    log_info "  - CentOS/RHEL: sudo yum install curl wget"
+                    log_info "  - OpenWrt: opkg install curl wget"
                     ;;
-                "jq")
-                    log_info "  - Ubuntu/Debian: sudo apt-get install jq"
-                    log_info "  - CentOS/RHEL: sudo yum install jq"
+                "tar")
+                    log_info "  - Ubuntu/Debian: sudo apt-get install tar"
+                    log_info "  - CentOS/RHEL: sudo yum install tar"
+                    log_info "  - OpenWrt: opkg install tar"
                     ;;
                 *)
                     log_info "  - $dep: 请使用系统包管理器安装"
@@ -69,7 +92,8 @@ check_dependencies() {
         done
         return 1
     fi
-    
+
+    log_info "依赖检查通过"
     return 0
 }
 

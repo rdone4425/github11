@@ -45,53 +45,46 @@ file-sync-system/
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
 ```
 
-### 🚀 一键安装
+### 🚀 一键启动
 
 ```bash
-# 智能安装（推荐）- 自动检查包列表是否需要更新
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+# 直接运行主程序（自动安装）
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/start.sh)
 
-# 强制更新包列表后安装（网络较好时使用）
-FORCE_UPDATE=1 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+# 如果curl不可用
+wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/start.sh | bash
 
-# 如果curl不可用（如某些OpenWrt系统）
-wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/install.sh | bash
+# 或者直接运行主程序
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/bin/file-sync.sh)
 ```
 
-**智能包管理特性：**
-- 🧠 自动检测包列表是否过期（超过24小时）
-- ⚡ 跳过不必要的包列表更新，节省时间
-- 🔄 支持强制更新选项
+**🎯 极简设计理念：**
+- 📦 **无需安装脚本** - 主程序自动处理安装
+- 🧠 **智能检测** - 自动识别系统类型和环境
+- ⚡ **智能包管理** - 避免重复更新包列表
+- 🔄 **一体化** - 安装、配置、运行全在主程序中
 
-**安装完成后会自动进入交互式主程序界面，您可以：**
-- 🔧 初始化配置
-- ⚙️ 配置GitHub凭据和监控路径
-- 🚀 启动文件监控
-- 📊 查看系统状态
+**首次运行会自动：**
+- 🔧 检测系统环境并安装依赖
+- ⚙️ 进入交互式配置界面
+- 🚀 引导您完成GitHub配置
+- 📊 提供完整的管理功能
 
-### 📦 手动安装
+### 📦 手动下载
 
 ```bash
-# 下载项目
-wget https://github.com/rdone4425/github11/archive/main.tar.gz -O github11.tar.gz
-tar -xzf github11.tar.gz
-cd github11-main
+# 下载主程序
+wget https://raw.githubusercontent.com/rdone4425/github11/main/bin/file-sync.sh
+chmod +x file-sync.sh
 
-# 运行安装脚本
-sudo ./install.sh
+# 运行主程序（自动安装和配置）
+sudo ./file-sync.sh
 
-# 配置GitHub凭据
-nano /file-sync-system/config/global.conf
-
-# 配置监控路径
-nano /file-sync-system/config/paths.conf
-
-# 验证配置
-file-sync validate
-
-# 启动服务（根据系统自动选择）
-systemctl start file-sync          # systemd系统
-/etc/init.d/file-sync start        # OpenWrt系统
+# 或者直接运行特定命令
+sudo ./file-sync.sh install        # 仅安装
+sudo ./file-sync.sh config         # 仅配置
+sudo ./file-sync.sh start          # 启动监控
+sudo ./file-sync.sh status         # 查看状态
 ```
 
 ### 演示模式
