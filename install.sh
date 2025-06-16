@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# GitHub文件同步系统 - 安装脚本
-# 自动化安装和配置系统
+# GitHub文件同步系统 - 一键安装脚本
+# 支持从GitHub直接下载安装
+# 使用方法: bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
 
 set -euo pipefail
 
@@ -16,7 +17,10 @@ NC='\033[0m' # No Color
 INSTALL_DIR="/opt/file-sync-system"
 SERVICE_USER="file-sync"
 SERVICE_GROUP="file-sync"
-CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GITHUB_REPO="rdone4425/github11"
+GITHUB_BRANCH="main"
+TEMP_DIR="/tmp/file-sync-install-$$"
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "$TEMP_DIR")"
 
 # 日志函数
 log_info() {
@@ -110,47 +114,80 @@ create_system_user() {
     fi
 }
 
+# 下载源码
+download_source() {
+    log_step "下载源码..."
+
+    # 创建临时目录
+    mkdir -p "$TEMP_DIR"
+    cd "$TEMP_DIR"
+
+    # 下载源码
+    if command -v git >/dev/null 2>&1; then
+        log_info "使用git克隆仓库..."
+        git clone "https://github.com/$GITHUB_REPO.git" file-sync-system
+        cd file-sync-system
+        git checkout "$GITHUB_BRANCH"
+    else
+        log_info "使用curl下载压缩包..."
+        curl -L "https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz" -o source.tar.gz
+        tar -xzf source.tar.gz
+        mv "github11-$GITHUB_BRANCH" file-sync-system
+        cd file-sync-system
+    fi
+
+    log_info "源码下载完成"
+}
+
 # 创建安装目录
 create_install_directory() {
     log_step "创建安装目录..."
-    
+
     # 创建主目录
     mkdir -p "$INSTALL_DIR"
-    
+
     # 创建子目录
     mkdir -p "$INSTALL_DIR/bin"
     mkdir -p "$INSTALL_DIR/lib"
     mkdir -p "$INSTALL_DIR/config"
     mkdir -p "$INSTALL_DIR/logs"
     mkdir -p "$INSTALL_DIR/docs"
-    
+
     log_info "安装目录创建完成: $INSTALL_DIR"
 }
 
 # 复制文件
 copy_files() {
     log_step "复制程序文件..."
-    
+
+    local source_dir="$TEMP_DIR/file-sync-system"
+
     # 复制可执行文件
-    cp -r "$CURRENT_DIR/bin/"* "$INSTALL_DIR/bin/"
-    chmod +x "$INSTALL_DIR/bin/"*
-    
+    if [[ -d "$source_dir/bin" ]]; then
+        cp -r "$source_dir/bin/"* "$INSTALL_DIR/bin/"
+        chmod +x "$INSTALL_DIR/bin/"*
+    fi
+
     # 复制库文件
-    cp -r "$CURRENT_DIR/lib/"* "$INSTALL_DIR/lib/"
-    
+    if [[ -d "$source_dir/lib" ]]; then
+        cp -r "$source_dir/lib/"* "$INSTALL_DIR/lib/"
+    fi
+
     # 复制配置文件模板
-    cp -r "$CURRENT_DIR/config/"* "$INSTALL_DIR/config/"
-    
+    if [[ -d "$source_dir/config" ]]; then
+        cp -r "$source_dir/config/"* "$INSTALL_DIR/config/"
+    fi
+
     # 复制文档
-    if [[ -d "$CURRENT_DIR/docs" ]]; then
-        cp -r "$CURRENT_DIR/docs/"* "$INSTALL_DIR/docs/"
+    if [[ -d "$source_dir/docs" ]]; then
+        cp -r "$source_dir/docs/"* "$INSTALL_DIR/docs/"
     fi
-    
+
     # 复制README
-    if [[ -f "$CURRENT_DIR/README.md" ]]; then
-        cp "$CURRENT_DIR/README.md" "$INSTALL_DIR/"
+    if [[ -f "$source_dir/README.md" ]]; then
+        cp "$source_dir/README.md" "$INSTALL_DIR/"
     fi
-    
+
     log_info "文件复制完成"
 }
 
@@ -278,40 +315,52 @@ show_post_install_info() {
     echo "更多信息请参考: $INSTALL_DIR/README.md"
 }
 
+# 清理临时文件
+cleanup_temp() {
+    if [[ -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+
 # 卸载函数
 uninstall() {
     log_step "卸载GitHub文件同步系统..."
-    
+
     # 停止并禁用服务
     systemctl stop file-sync.service 2>/dev/null || true
     systemctl disable file-sync.service 2>/dev/null || true
-    
+
     # 删除服务文件
     rm -f /etc/systemd/system/file-sync.service
     systemctl daemon-reload
-    
+
     # 删除命令链接
     rm -f /usr/local/bin/file-sync
-    
+
     # 删除安装目录
     if [[ -d "$INSTALL_DIR" ]]; then
         rm -rf "$INSTALL_DIR"
     fi
-    
+
     # 删除用户
     if id "$SERVICE_USER" &>/dev/null; then
         userdel "$SERVICE_USER" 2>/dev/null || true
     fi
-    
+
     log_info "卸载完成"
 }
 
 # 显示帮助信息
 show_help() {
     cat << EOF
-GitHub文件同步系统 - 安装脚本
+GitHub文件同步系统 - 一键安装脚本
 
-用法: $0 [选项]
+用法:
+  # 在线安装
+  bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+
+  # 本地安装
+  sudo $0 [选项]
 
 选项:
   install     安装系统 (默认)
@@ -330,10 +379,14 @@ main() {
     
     case "$action" in
         "install")
+            # 设置清理陷阱
+            trap cleanup_temp EXIT
+
             check_root
             check_system
             install_dependencies
             create_system_user
+            download_source
             create_install_directory
             copy_files
             set_permissions
@@ -341,6 +394,7 @@ main() {
             create_command_link
             initialize_config
             show_post_install_info
+            cleanup_temp
             ;;
         "uninstall")
             check_root

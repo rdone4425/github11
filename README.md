@@ -38,12 +38,19 @@ file-sync-system/
 
 ## 快速开始
 
-### 自动安装
+### 🚀 一键安装
+
+```bash
+# 一键安装命令
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
+```
+
+### 📦 手动安装
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-repo/file-sync-system.git
-cd file-sync-system
+git clone https://github.com/rdone4425/github11.git
+cd github11
 
 # 运行安装脚本
 sudo ./install.sh
