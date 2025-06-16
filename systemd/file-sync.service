@@ -1,0 +1,38 @@
+[Unit]
+Description=GitHub File Sync Service
+Documentation=https://github.com/your-repo/file-sync-system
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/home
+
+[Service]
+Type=forking
+User=file-sync
+Group=file-sync
+WorkingDirectory=/opt/file-sync-system
+ExecStartPre=/opt/file-sync-system/bin/file-sync validate
+ExecStart=/opt/file-sync-system/bin/file-sync-daemon start
+ExecStop=/opt/file-sync-system/bin/file-sync-daemon stop
+ExecReload=/opt/file-sync-system/bin/file-sync-daemon reload
+PIDFile=/opt/file-sync-system/logs/daemon.pid
+Restart=always
+RestartSec=10
+RestartPreventExitStatus=2
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/file-sync-system/logs /opt/file-sync-system/config
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 环境变量
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=LOG_LEVEL=INFO
+
+[Install]
+WantedBy=multi-user.target
