@@ -42,6 +42,7 @@ file-sync-system/
 
 ```bash
 # 一键安装命令
+#
 bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
 ```
 
@@ -68,13 +69,6 @@ file-sync validate
 sudo systemctl start file-sync
 ```
 
-### 演示模式
-
-运行演示脚本了解系统功能：
-
-```bash
-./demo.sh
-```
 
 详细说明请参考 [安装指南](docs/installation.md)。
 
