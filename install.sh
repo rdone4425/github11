@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# GitHub文件同步系统 - 一键安装脚本
-# 支持从GitHub直接下载安装
+# GitHub文件同步系统 - 通用安装脚本
+# 自动适配所有Linux系统（包括OpenWrt）
 # 使用方法: bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
 
 set -euo pipefail
@@ -103,31 +103,47 @@ install_dependencies() {
     case "$PACKAGE_MANAGER" in
         "opkg")
             opkg update
-            # OpenWrt通常已包含curl和tar，只需安装缺少的包
-            opkg install curl ca-certificates
-            # 检查是否需要安装其他包
-            if ! command -v jq >/dev/null 2>&1; then
-                log_warn "jq不可用，将使用简化的JSON处理"
-            fi
-            # OpenWrt可能没有inotify-tools，使用内置的inotifywait
-            if ! command -v inotifywait >/dev/null 2>&1; then
-                log_warn "inotify-tools不可用，尝试安装..."
-                opkg install inotify-tools 2>/dev/null || log_warn "无法安装inotify-tools，将使用轮询模式"
-            fi
+            # 尝试安装基础依赖，失败不退出
+            install_openwrt_deps
             ;;
         "apt")
             apt-get update
-            apt-get install -y curl jq inotify-tools bash tar
+            apt-get install -y curl jq inotify-tools bash tar ca-certificates
             ;;
         "yum")
-            yum install -y curl jq inotify-tools bash tar
+            yum install -y curl jq inotify-tools bash tar ca-certificates
             ;;
         "dnf")
-            dnf install -y curl jq inotify-tools bash tar
+            dnf install -y curl jq inotify-tools bash tar ca-certificates
             ;;
     esac
 
     log_info "依赖安装完成"
+}
+
+# OpenWrt依赖安装
+install_openwrt_deps() {
+    # 检查并安装下载工具
+    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+        opkg install wget 2>/dev/null || opkg install curl 2>/dev/null || log_warn "无法安装下载工具"
+    fi
+
+    # 尝试安装SSL证书
+    opkg install ca-certificates 2>/dev/null || log_warn "ca-certificates安装失败"
+
+    # 检查tar
+    if ! command -v tar >/dev/null 2>&1; then
+        opkg install tar 2>/dev/null || log_warn "tar安装失败"
+    fi
+
+    # 可选依赖
+    if ! command -v jq >/dev/null 2>&1; then
+        log_info "jq不可用，将使用简化JSON处理"
+    fi
+
+    if ! command -v inotifywait >/dev/null 2>&1; then
+        log_info "inotify-tools不可用，将使用轮询监控模式"
+    fi
 }
 
 # 创建系统用户（使用root用户）
@@ -146,12 +162,26 @@ download_source() {
     mkdir -p "$TEMP_DIR"
     cd "$TEMP_DIR"
 
-    # 使用curl下载压缩包
+    local download_url="https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz"
+
+    # 尝试使用curl或wget下载
     log_info "下载源码压缩包..."
-    if curl -L "https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz" -o source.tar.gz; then
-        log_info "源码下载成功"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -L "$download_url" -o source.tar.gz; then
+            log_info "源码下载成功"
+        else
+            log_error "curl下载失败"
+            exit 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget "$download_url" -O source.tar.gz; then
+            log_info "源码下载成功"
+        else
+            log_error "wget下载失败"
+            exit 1
+        fi
     else
-        log_error "源码下载失败"
+        log_error "没有可用的下载工具（curl或wget）"
         exit 1
     fi
 

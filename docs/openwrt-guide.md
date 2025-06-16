@@ -30,8 +30,11 @@ OpenWrt是一个基于Linux的嵌入式操作系统，主要用于路由器等�
 ### 🚀 一键安装
 
 ```bash
-# OpenWrt专用安装脚本
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/openwrt-install.sh)
+# 通用安装脚本（自动适配OpenWrt）
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+
+# 如果curl不可用，使用wget
+wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/install.sh | bash
 ```
 
 ### 📦 手动安装
@@ -39,14 +42,42 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/openwr
 如果一键安装失败，可以手动安装：
 
 ```bash
-# 1. 下载源码
+# 1. 安装基础依赖
+opkg update
+opkg install wget tar
+
+# 2. 下载源码
 cd /tmp
-curl -L https://github.com/rdone4425/github11/archive/main.tar.gz -o github11.tar.gz
+wget https://github.com/rdone4425/github11/archive/main.tar.gz -O github11.tar.gz
 tar -xzf github11.tar.gz
 cd github11-main
 
-# 2. 运行安装脚本
-./openwrt-install.sh
+# 3. 运行安装脚本
+./openwrt-simple-install.sh
+```
+
+### 🔧 依赖问题解决
+
+如果遇到包安装失败的问题：
+
+```bash
+# 1. 检查系统信息
+cat /etc/os-release
+uname -m
+
+# 2. 更新包列表
+opkg update
+
+# 3. 尝试安装基础包
+opkg install wget
+opkg install tar
+opkg install ca-certificates
+
+# 4. 如果curl安装失败，可以只用wget
+# 系统会自动创建curl兼容包装器
+
+# 5. 运行依赖检查脚本
+wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/openwrt-deps.sh | bash
 ```
 
 ## 配置说明

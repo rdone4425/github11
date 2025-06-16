@@ -48,18 +48,18 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system
 ### 🚀 一键安装
 
 ```bash
-# 通用Linux系统
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/quick-install.sh)
+# 通用安装脚本（自动适配所有Linux系统，包括OpenWrt）
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
 
-# OpenWrt/LEDE/Kwrt系统专用
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/openwrt-install.sh)
+# 如果curl不可用（如某些OpenWrt系统）
+wget -O- https://raw.githubusercontent.com/rdone4425/github11/main/install.sh | bash
 ```
 
 ### 📦 手动安装
 
 ```bash
 # 下载项目
-curl -L https://github.com/rdone4425/github11/archive/main.tar.gz -o github11.tar.gz
+wget https://github.com/rdone4425/github11/archive/main.tar.gz -O github11.tar.gz
 tar -xzf github11.tar.gz
 cd github11-main
 
@@ -75,8 +75,9 @@ nano /file-sync-system/config/paths.conf
 # 验证配置
 file-sync validate
 
-# 启动服务
-systemctl start file-sync
+# 启动服务（根据系统自动选择）
+systemctl start file-sync          # systemd系统
+/etc/init.d/file-sync start        # OpenWrt系统
 ```
 
 ### 演示模式
