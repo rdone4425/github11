@@ -4,44 +4,90 @@
 # 专为OpenWrt/Kwrt系统设计的GitHub文件同步工具
 #
 # Author: GitHub Sync Tool
-# Version: 1.0.0
+# Version: 2.1.0
 # License: MIT
 #
+
+#==============================================================================
+# 版本信息和常量定义
+#==============================================================================
+
+readonly GITHUB_SYNC_VERSION="2.1.0"
+readonly GITHUB_SYNC_NAME="GitHub File Sync Tool"
 
 # 全局变量
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
+# 项目目录 - 在/root下创建专用目录
+readonly PROJECT_DIR="/root/github-sync"
+
+# 确保项目目录存在
+ensure_project_directory() {
+    if [ ! -d "$PROJECT_DIR" ]; then
+        if ! mkdir -p "$PROJECT_DIR" 2>/dev/null; then
+            echo "错误: 无法创建项目目录 $PROJECT_DIR" >&2
+            exit 1
+        fi
+        echo "已创建项目目录: $PROJECT_DIR"
+    fi
+}
+
+# 初始化项目目录
+ensure_project_directory
+
 # 支持多实例 - 可通过环境变量或参数指定实例名
 INSTANCE_NAME="${GITHUB_SYNC_INSTANCE:-default}"
-CONFIG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.conf"
-LOG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.log"
-PID_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.pid"
-LOCK_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.lock"
+CONFIG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.conf"
+LOG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.log"
+PID_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.pid"
+LOCK_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.lock"
 
-# 默认配置
-DEFAULT_POLL_INTERVAL=30
-DEFAULT_LOG_LEVEL="INFO"
-DEFAULT_MAX_LOG_SIZE=1048576  # 1MB
-DEFAULT_LOG_KEEP_DAYS=7       # 保留7天的日志
-DEFAULT_LOG_MAX_FILES=10      # 最多保留10个日志文件
+#==============================================================================
+# 默认配置常量
+#==============================================================================
 
-# 颜色输出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+readonly DEFAULT_POLL_INTERVAL=30
+readonly DEFAULT_LOG_LEVEL="INFO"
+readonly DEFAULT_MAX_LOG_SIZE=1048576  # 1MB
+readonly DEFAULT_LOG_KEEP_DAYS=7       # 保留7天的日志
+readonly DEFAULT_LOG_MAX_FILES=10      # 最多保留10个日志文件
+readonly DEFAULT_MAX_FILE_SIZE=1048576 # 1MB
+readonly DEFAULT_HTTP_TIMEOUT=30
+readonly DEFAULT_MAX_RETRIES=3
+readonly DEFAULT_RETRY_INTERVAL=5
+
+# 颜色输出常量
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
 
 # 系统工具缓存 - 避免重复检查
 STAT_CMD=""
 STAT_FORMAT=""
+SYSTEM_TOOLS_INITIALIZED=false
+
+# 菜单系统缓存
+MENU_CONFIG_CACHE=""
+MENU_STATUS_CACHE=""
+MENU_CACHE_TIME=0
+MENU_CACHE_DURATION=5  # 缓存5秒
+
+#==============================================================================
+# 核心工具函数
+#==============================================================================
 
 # 初始化系统工具检查
 # 功能: 检测并缓存系统工具的可用性和格式，避免重复检查
 # 参数: 无
-# 返回: 无
+# 返回: 0-成功, 1-失败
 # 副作用: 设置全局变量 STAT_CMD 和 STAT_FORMAT
 init_system_tools() {
+    if [ "$SYSTEM_TOOLS_INITIALIZED" = "true" ]; then
+        return 0
+    fi
+
     # 检查stat命令和格式
     if command -v stat >/dev/null 2>&1; then
         # 测试GNU stat格式 (Linux)
@@ -55,36 +101,93 @@ init_system_tools() {
         fi
     fi
 
+    SYSTEM_TOOLS_INITIALIZED=true
     log_debug "系统工具初始化: STAT_CMD=$STAT_CMD, STAT_FORMAT=$STAT_FORMAT"
+    return 0
+}
+
+# 检查命令是否存在
+# 功能: 检查指定命令是否在系统中可用
+# 参数: $1 - 命令名称
+# 返回: 0-存在, 1-不存在
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# 验证数字
+# 功能: 验证字符串是否为有效的正整数
+# 参数: $1 - 要验证的字符串
+# 返回: 0-有效, 1-无效
+is_valid_number() {
+    echo "$1" | grep -qE '^[0-9]+$'
+}
+
+# 转义JSON字符串
+# 功能: 转义JSON字符串中的特殊字符
+# 参数: $1 - 要转义的字符串
+# 返回: 转义后的字符串
+escape_json_string() {
+    echo "$1" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g'
 }
 
 #==============================================================================
 # 日志和输出函数
 #==============================================================================
 
+# 日志级别定义
+readonly LOG_LEVEL_ERROR=1
+readonly LOG_LEVEL_WARN=2
+readonly LOG_LEVEL_INFO=3
+readonly LOG_LEVEL_DEBUG=4
+readonly LOG_LEVEL_SUCCESS=3  # SUCCESS 等同于 INFO 级别
+
+# 获取日志级别数值
+get_log_level_value() {
+    case "${LOG_LEVEL:-INFO}" in
+        "ERROR") echo $LOG_LEVEL_ERROR ;;
+        "WARN")  echo $LOG_LEVEL_WARN ;;
+        "INFO")  echo $LOG_LEVEL_INFO ;;
+        "DEBUG") echo $LOG_LEVEL_DEBUG ;;
+        *) echo $LOG_LEVEL_INFO ;;
+    esac
+}
+
+# 检查是否应该输出日志
+should_log() {
+    local level="$1"
+    local level_value
+    local current_level_value=$(get_log_level_value)
+
+    case "$level" in
+        "ERROR")   level_value=$LOG_LEVEL_ERROR ;;
+        "WARN")    level_value=$LOG_LEVEL_WARN ;;
+        "INFO")    level_value=$LOG_LEVEL_INFO ;;
+        "SUCCESS") level_value=$LOG_LEVEL_SUCCESS ;;
+        "DEBUG")   level_value=$LOG_LEVEL_DEBUG ;;
+        *) return 1 ;;
+    esac
+
+    [ "$level_value" -le "$current_level_value" ]
+}
+
+# 核心日志函数
 log() {
     local level="$1"
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # 检查日志级别
-    case "$LOG_LEVEL" in
-        "ERROR")
-            [ "$level" != "ERROR" ] && return
-            ;;
-        "WARN")
-            [ "$level" != "ERROR" ] && [ "$level" != "WARN" ] && return
-            ;;
-        "INFO")
-            [ "$level" = "DEBUG" ] && return
-            ;;
-        "DEBUG")
-            # 显示所有级别
-            ;;
-    esac
+    if ! should_log "$level"; then
+        return 0
+    fi
+
+    # 确保日志文件存在
+    if [ ! -f "$LOG_FILE" ]; then
+        touch "$LOG_FILE" 2>/dev/null || return 1
+    fi
 
     # 写入日志文件
-    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE" 2>/dev/null || return 1
 
     # 控制台输出（只在交互模式下显示）
     # 在守护进程模式下绝对不输出到控制台
@@ -99,6 +202,9 @@ log() {
             "INFO")
                 echo -e "${GREEN}[INFO]${NC} $message"
                 ;;
+            "SUCCESS")
+                echo -e "${GREEN}[SUCCESS]${NC} $message"
+                ;;
             "DEBUG")
                 echo -e "${BLUE}[DEBUG]${NC} $message"
                 ;;
@@ -107,25 +213,52 @@ log() {
                 ;;
         esac
     fi
+
+    return 0
 }
 
-log_error() { log "ERROR" "$1"; }
-log_warn() { log "WARN" "$1"; }
-log_info() { log "INFO" "$1"; }
-log_debug() { log "DEBUG" "$1"; }
-log_success() { log "SUCCESS" "$1"; }
+# 便捷日志函数
+log_error() {
+    log "ERROR" "$1"
+    return 1  # 错误日志返回非零值，便于错误处理
+}
+
+log_warn() {
+    log "WARN" "$1"
+    return 0
+}
+
+log_info() {
+    log "INFO" "$1"
+    return 0
+}
+
+log_debug() {
+    log "DEBUG" "$1"
+    return 0
+}
+
+log_success() {
+    log "SUCCESS" "$1"
+    return 0
+}
+
+#==============================================================================
+# 文件操作函数
+#==============================================================================
 
 # 获取文件大小（兼容不同系统）
 # 功能: 获取指定文件的字节大小，兼容GNU和BSD系统
 # 参数: $1 - 文件路径
 # 返回: 文件大小（字节），如果文件不存在返回0
-# 优化: 使用缓存的系统工具信息，避免重复检查
 get_file_size() {
     local file="$1"
     if [ ! -f "$file" ]; then
         echo 0
         return
     fi
+
+    init_system_tools
 
     # 使用缓存的系统工具信息
     case "$STAT_FORMAT" in
@@ -141,7 +274,37 @@ get_file_size() {
     esac
 }
 
+# 获取文件修改时间戳（兼容不同系统）
+# 功能: 获取文件的修改时间戳（Unix时间戳）
+# 参数: $1 - 文件路径
+# 返回: Unix时间戳，如果文件不存在返回0
+get_file_mtime() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo 0
+        return
+    fi
+
+    init_system_tools
+
+    # 使用缓存的系统工具信息
+    case "$STAT_FORMAT" in
+        "gnu")
+            stat -c %Y "$file" 2>/dev/null || echo 0
+            ;;
+        "bsd")
+            stat -f %m "$file" 2>/dev/null || echo 0
+            ;;
+        *)
+            echo 0
+            ;;
+    esac
+}
+
 # 获取文件修改时间（天数）
+# 功能: 计算文件距离现在的天数
+# 参数: $1 - 文件路径
+# 返回: 天数，如果文件不存在返回999
 get_file_age_days() {
     local file="$1"
     if [ ! -f "$file" ]; then
@@ -149,20 +312,7 @@ get_file_age_days() {
         return
     fi
 
-    local file_mtime
-    # 使用缓存的系统工具信息
-    case "$STAT_FORMAT" in
-        "gnu")
-            file_mtime=$(stat -c %Y "$file" 2>/dev/null) || file_mtime=0
-            ;;
-        "bsd")
-            file_mtime=$(stat -f %m "$file" 2>/dev/null) || file_mtime=0
-            ;;
-        *)
-            file_mtime=0
-            ;;
-    esac
-
+    local file_mtime=$(get_file_mtime "$file")
     local current_time=$(date +%s)
     local age_seconds=$((current_time - file_mtime))
     local age_days=$((age_seconds / 86400))
@@ -179,7 +329,7 @@ cleanup_old_logs() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local deleted_count=0
     local total_size_freed=0
-    local temp_stats="${SCRIPT_DIR}/.cleanup_stats_$$"
+    local temp_stats="${PROJECT_DIR}/.cleanup_stats_$$"
 
     # 清理基于时间的旧日志 - 避免管道子shell问题
     find "$log_dir" -name "${log_basename}.*" -type f > "${temp_stats}.files" 2>/dev/null || true
@@ -261,7 +411,7 @@ rotate_log() {
 
 # 定期清理日志（每天执行一次）
 periodic_log_cleanup() {
-    local cleanup_marker="${SCRIPT_DIR}/.last_log_cleanup_$(echo "$INSTANCE_NAME" | tr '/' '_')"
+    local cleanup_marker="${PROJECT_DIR}/.last_log_cleanup_$(echo "$INSTANCE_NAME" | tr '/' '_')"
     local today=$(date '+%Y%m%d')
     local current_hour=$(date '+%H')
 
@@ -347,36 +497,169 @@ load_config() {
     # 设置默认值
     POLL_INTERVAL=${POLL_INTERVAL:-$DEFAULT_POLL_INTERVAL}
     LOG_LEVEL=${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}
-    
+    MAX_FILE_SIZE=${MAX_FILE_SIZE:-$DEFAULT_MAX_FILE_SIZE}
+    HTTP_TIMEOUT=${HTTP_TIMEOUT:-$DEFAULT_HTTP_TIMEOUT}
+    MAX_RETRIES=${MAX_RETRIES:-$DEFAULT_MAX_RETRIES}
+    RETRY_INTERVAL=${RETRY_INTERVAL:-$DEFAULT_RETRY_INTERVAL}
+    LOG_MAX_SIZE=${LOG_MAX_SIZE:-$DEFAULT_MAX_LOG_SIZE}
+    LOG_KEEP_DAYS=${LOG_KEEP_DAYS:-$DEFAULT_LOG_KEEP_DAYS}
+    LOG_MAX_FILES=${LOG_MAX_FILES:-$DEFAULT_LOG_MAX_FILES}
+
+    # 设置默认布尔值
+    AUTO_COMMIT=${AUTO_COMMIT:-true}
+    VERIFY_SSL=${VERIFY_SSL:-true}
+
+    # 设置默认字符串值
+    COMMIT_MESSAGE_TEMPLATE=${COMMIT_MESSAGE_TEMPLATE:-"Auto sync from OpenWrt: %s"}
+    EXCLUDE_PATTERNS=${EXCLUDE_PATTERNS:-"*.tmp *.log *.pid *.lock .git"}
+
     log_info "配置文件加载成功"
     return 0
 }
 
 # 验证配置
+# 功能: 验证配置的有效性
+# 参数: 无
+# 返回: 0-成功, 非零-失败
 validate_config() {
     local errors=0
-    
+
+    # 验证数值配置
+    if ! is_valid_number "$POLL_INTERVAL" || [ "$POLL_INTERVAL" -lt 5 ]; then
+        log_error "无效的轮询间隔: $POLL_INTERVAL (必须是大于等于5的数字)"
+        errors=$((errors + 1))
+    fi
+
+    if ! is_valid_number "$MAX_FILE_SIZE" || [ "$MAX_FILE_SIZE" -lt 1 ]; then
+        log_error "无效的最大文件大小: $MAX_FILE_SIZE (必须是正整数)"
+        errors=$((errors + 1))
+    fi
+
+    if ! is_valid_number "$HTTP_TIMEOUT" || [ "$HTTP_TIMEOUT" -lt 1 ]; then
+        log_error "无效的HTTP超时时间: $HTTP_TIMEOUT (必须是正整数)"
+        errors=$((errors + 1))
+    fi
+
+    # 验证日志级别
+    case "$LOG_LEVEL" in
+        "DEBUG"|"INFO"|"WARN"|"ERROR") ;;
+        *)
+            log_error "无效的日志级别: $LOG_LEVEL (必须是 DEBUG, INFO, WARN, ERROR 之一)"
+            errors=$((errors + 1))
+            ;;
+    esac
+
+    # 验证GitHub配置
+    if [ -z "$GITHUB_USERNAME" ]; then
+        log_error "GitHub用户名未配置"
+        errors=$((errors + 1))
+    fi
+
+    if [ -z "$GITHUB_TOKEN" ]; then
+        log_error "GitHub令牌未配置"
+        errors=$((errors + 1))
+    elif [ ${#GITHUB_TOKEN} -lt 20 ]; then
+        log_error "GitHub令牌格式可能不正确 (长度太短)"
+        errors=$((errors + 1))
+    fi
+
     # 验证GitHub连接
     if ! check_github_connection; then
         log_error "GitHub连接验证失败"
         errors=$((errors + 1))
     fi
-    
-    # 验证监控路径
-    echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
-        if [ ! -e "$local_path" ]; then
-            log_error "监控路径不存在: $local_path"
-            errors=$((errors + 1))
-        elif [ -f "$local_path" ]; then
-            log_debug "监控文件: $local_path"
-        elif [ -d "$local_path" ]; then
-            log_debug "监控目录: $local_path"
-        else
-            log_warn "路径类型未知: $local_path"
-        fi
-    done
-    
+
+    # 验证同步路径
+    if [ -z "$SYNC_PATHS" ]; then
+        log_error "未配置同步路径"
+        errors=$((errors + 1))
+    else
+        validate_sync_paths || errors=$((errors + 1))
+    fi
+
     return $errors
+}
+
+# 验证同步路径配置
+# 功能: 验证同步路径配置的格式和有效性
+# 参数: 无
+# 返回: 0-成功, 1-失败
+validate_sync_paths() {
+    local path_errors=0
+    local line_num=0
+
+    echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
+        line_num=$((line_num + 1))
+
+        # 跳过空行
+        [ -z "$local_path" ] && continue
+
+        # 验证本地路径
+        if [ ! -e "$local_path" ]; then
+            log_error "同步路径 $line_num: 本地路径不存在: $local_path"
+            path_errors=$((path_errors + 1))
+        elif [ -f "$local_path" ]; then
+            if [ ! -r "$local_path" ]; then
+                log_error "同步路径 $line_num: 文件不可读: $local_path"
+                path_errors=$((path_errors + 1))
+            fi
+        elif [ -d "$local_path" ]; then
+            if [ ! -r "$local_path" ]; then
+                log_error "同步路径 $line_num: 目录不可读: $local_path"
+                path_errors=$((path_errors + 1))
+            fi
+        fi
+
+        # 验证仓库格式
+        if [ -z "$repo" ]; then
+            log_error "同步路径 $line_num: GitHub仓库未指定"
+            path_errors=$((path_errors + 1))
+        elif ! echo "$repo" | grep -q '/'; then
+            log_error "同步路径 $line_num: GitHub仓库格式错误: $repo (应为 用户名/仓库名)"
+            path_errors=$((path_errors + 1))
+        fi
+
+        # 验证分支
+        if [ -z "$branch" ]; then
+            log_error "同步路径 $line_num: 分支未指定"
+            path_errors=$((path_errors + 1))
+        fi
+
+        log_debug "验证同步路径 $line_num: $local_path -> $repo:$branch/$target_path"
+    done
+
+    return $path_errors
+}
+
+# 重试机制包装器
+# 功能: 为GitHub API调用提供重试机制
+# 参数: $1 - 函数名, $2... - 函数参数
+# 返回: 函数执行结果
+github_api_with_retry() {
+    local func_name="$1"
+    shift
+    local max_retries=${MAX_RETRIES:-$DEFAULT_MAX_RETRIES}
+    local retry_interval=${RETRY_INTERVAL:-$DEFAULT_RETRY_INTERVAL}
+    local attempt=1
+
+    while [ $attempt -le $max_retries ]; do
+        log_debug "GitHub API调用尝试 $attempt/$max_retries: $func_name"
+
+        if "$func_name" "$@"; then
+            return 0
+        fi
+
+        if [ $attempt -lt $max_retries ]; then
+            log_warn "GitHub API调用失败，${retry_interval}秒后重试 ($attempt/$max_retries)"
+            sleep "$retry_interval"
+        else
+            log_error "GitHub API调用失败，已达到最大重试次数 ($max_retries)"
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    return 1
 }
 
 #==============================================================================
@@ -384,18 +667,53 @@ validate_config() {
 #==============================================================================
 
 # 检查GitHub连接
+# 功能: 验证GitHub API连接和令牌有效性
+# 参数: 无
+# 返回: 0-成功, 1-失败
 check_github_connection() {
-    local response
-    response=$(curl -s -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/user" -o /dev/null)
-    
-    if [ "$response" = "200" ]; then
-        log_info "GitHub连接验证成功"
-        return 0
-    else
-        log_error "GitHub连接验证失败，HTTP状态码: $response"
+    if [ -z "$GITHUB_TOKEN" ]; then
+        log_error "GitHub令牌未配置"
         return 1
     fi
+
+    log_debug "检查GitHub连接..."
+
+    local response
+    local http_code
+
+    # 使用curl检查GitHub API连接
+    response=$(curl -s -w "%{http_code}" \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "User-Agent: github-sync-tool/$GITHUB_SYNC_VERSION" \
+        --connect-timeout "${HTTP_TIMEOUT:-30}" \
+        --max-time "${HTTP_TIMEOUT:-30}" \
+        "https://api.github.com/user" \
+        -o /dev/null 2>/dev/null)
+
+    http_code="$response"
+
+    case "$http_code" in
+        "200")
+            log_info "GitHub连接验证成功"
+            return 0
+            ;;
+        "401")
+            log_error "GitHub令牌无效或已过期"
+            return 1
+            ;;
+        "403")
+            log_error "GitHub API访问被拒绝，可能是令牌权限不足或API限制"
+            return 1
+            ;;
+        "")
+            log_error "无法连接到GitHub API，请检查网络连接"
+            return 1
+            ;;
+        *)
+            log_error "GitHub连接验证失败，HTTP状态码: $http_code"
+            return 1
+            ;;
+    esac
 }
 
 # 获取文件的SHA值（用于更新文件）
@@ -424,30 +742,22 @@ upload_file_to_github() {
         return 1
     fi
     
-    # 检查文件大小（兼容不同系统）
-    local file_size
-    if command -v stat >/dev/null 2>&1; then
-        # 尝试GNU stat (Linux)
-        file_size=$(stat -c%s "$local_file" 2>/dev/null) || \
-        # 尝试BSD stat (macOS, FreeBSD)
-        file_size=$(stat -f%z "$local_file" 2>/dev/null) || \
-        # 回退方案
-        file_size=$(wc -c < "$local_file" 2>/dev/null || echo 0)
-    else
-        file_size=0
-    fi
-    if [ "$file_size" -gt "${MAX_FILE_SIZE:-1048576}" ]; then
-        log_error "文件太大，跳过: $local_file (${file_size} bytes)"
+    # 检查文件大小
+    local file_size=$(get_file_size "$local_file")
+    local max_size=${MAX_FILE_SIZE:-$DEFAULT_MAX_FILE_SIZE}
+
+    if [ "$file_size" -gt "$max_size" ]; then
+        log_error "文件太大，跳过: $local_file (${file_size} bytes > ${max_size} bytes)"
         return 1
     fi
     
     # 检查必要工具
-    if ! command -v base64 >/dev/null 2>&1; then
+    if ! command_exists base64; then
         log_error "base64 命令不可用，无法编码文件"
         return 1
     fi
 
-    if ! command -v curl >/dev/null 2>&1; then
+    if ! command_exists curl; then
         log_error "curl 命令不可用，无法上传文件"
         return 1
     fi
@@ -476,7 +786,7 @@ upload_file_to_github() {
     fi
 
     # 转义JSON字符串中的特殊字符
-    local escaped_message=$(echo "$commit_message" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+    local escaped_message=$(escape_json_string "$commit_message")
 
     # 构建API请求
     local json_data
@@ -530,44 +840,35 @@ upload_file_to_github() {
 should_exclude_file() {
     local file="$1"
     local filename=$(basename "$file")
-    
-    for pattern in $EXCLUDE_PATTERNS; do
+
+    # 检查排除模式
+    for pattern in ${EXCLUDE_PATTERNS:-"*.tmp *.log *.pid *.lock .git"}; do
         case "$filename" in
             $pattern)
+                log_debug "文件被排除: $file (匹配模式: $pattern)"
                 return 0  # 应该排除
                 ;;
         esac
     done
-    
+
+    # 检查文件大小
+    local file_size=$(get_file_size "$file")
+    local max_size=${MAX_FILE_SIZE:-$DEFAULT_MAX_FILE_SIZE}
+
+    if [ "$file_size" -gt "$max_size" ]; then
+        log_debug "文件被排除: $file (大小: ${file_size} > ${max_size})"
+        return 0  # 应该排除
+    fi
+
     return 1  # 不应该排除
 }
 
-# 获取文件的修改时间戳（兼容不同系统）
-get_file_mtime() {
-    local file="$1"
-    if [ ! -f "$file" ]; then
-        echo 0
-        return
-    fi
 
-    # 使用缓存的系统工具信息
-    case "$STAT_FORMAT" in
-        "gnu")
-            stat -c %Y "$file" 2>/dev/null || echo 0
-            ;;
-        "bsd")
-            stat -f %m "$file" 2>/dev/null || echo 0
-            ;;
-        *)
-            echo 0
-            ;;
-    esac
-}
 
 # 扫描目录中的文件变化
 scan_directory_changes() {
     local watch_path="$1"
-    local state_file="${SCRIPT_DIR}/.state_$(echo "$watch_path" | tr '/' '_')"
+    local state_file="${PROJECT_DIR}/.state_$(echo "$watch_path" | tr '/' '_')"
 
     # 创建状态文件（如果不存在）
     [ ! -f "$state_file" ] && touch "$state_file"
@@ -684,11 +985,14 @@ sync_file() {
     fi
     
     log_info "同步文件: $local_file -> $repo/$target_path"
-    
-    if upload_file_to_github "$local_file" "$repo" "$branch" "$target_path" "$commit_message"; then
-        log_info "文件同步成功: $relative_path"
+
+    # 使用重试机制上传文件
+    if github_api_with_retry upload_file_to_github "$local_file" "$repo" "$branch" "$target_path" "$commit_message"; then
+        log_success "文件同步成功: $relative_path"
+        return 0
     else
         log_error "文件同步失败: $relative_path"
+        return 1
     fi
 }
 
@@ -757,7 +1061,7 @@ monitor_loop() {
     local poll_interval=${POLL_INTERVAL:-$DEFAULT_POLL_INTERVAL}
 
     # 确保轮询间隔是有效数字且不小于5秒
-    if ! echo "$poll_interval" | grep -qE '^[0-9]+$' || [ "$poll_interval" -lt 5 ]; then
+    if ! is_valid_number "$poll_interval" || [ "$poll_interval" -lt 5 ]; then
         log_warn "无效的轮询间隔: $poll_interval，使用默认值: $DEFAULT_POLL_INTERVAL"
         poll_interval=$DEFAULT_POLL_INTERVAL
     fi
@@ -1066,7 +1370,7 @@ START=99
 STOP=10
 
 USE_PROCD=1
-PROG="$SCRIPT_DIR/github-sync.sh"
+PROG="$PROJECT_DIR/github-sync.sh"
 
 start_service() {
     procd_open_instance
@@ -1106,9 +1410,93 @@ install_service() {
     esac
 }
 
+# 创建便捷启动脚本
+create_launcher_script() {
+    local launcher_script="${PROJECT_DIR}/github-sync-launcher.sh"
+
+    cat > "$launcher_script" << 'EOF'
+#!/bin/sh
+#
+# GitHub 同步工具启动脚本
+# 这个脚本可以放在 /usr/local/bin/ 目录中，方便从任何地方调用
+#
+
+# 项目目录
+PROJECT_DIR="/root/github-sync"
+MAIN_SCRIPT="$PROJECT_DIR/github-sync.sh"
+
+# 检查项目目录是否存在
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "错误: 项目目录不存在: $PROJECT_DIR"
+    echo "请先运行安装程序或手动创建项目目录"
+    exit 1
+fi
+
+# 检查主脚本是否存在
+if [ ! -f "$MAIN_SCRIPT" ]; then
+    echo "错误: 主脚本不存在: $MAIN_SCRIPT"
+    echo "请先运行安装程序"
+    exit 1
+fi
+
+# 检查主脚本是否可执行
+if [ ! -x "$MAIN_SCRIPT" ]; then
+    echo "警告: 主脚本不可执行，正在修复权限..."
+    chmod +x "$MAIN_SCRIPT"
+fi
+
+# 切换到项目目录并执行主脚本
+cd "$PROJECT_DIR" || {
+    echo "错误: 无法切换到项目目录: $PROJECT_DIR"
+    exit 1
+}
+
+# 传递所有参数给主脚本
+exec "$MAIN_SCRIPT" "$@"
+EOF
+
+    chmod +x "$launcher_script" 2>/dev/null || true
+
+    log_info "已创建启动脚本: $launcher_script"
+
+    # 尝试安装到系统路径
+    if [ -w "/usr/local/bin" ] 2>/dev/null; then
+        if cp "$launcher_script" "/usr/local/bin/github-sync" 2>/dev/null; then
+            chmod +x "/usr/local/bin/github-sync" 2>/dev/null || true
+            log_info "启动脚本已安装到: /usr/local/bin/github-sync"
+            log_info "现在可以在任何地方使用 'github-sync' 命令"
+        fi
+    elif [ -w "/usr/bin" ] 2>/dev/null; then
+        if cp "$launcher_script" "/usr/bin/github-sync" 2>/dev/null; then
+            chmod +x "/usr/bin/github-sync" 2>/dev/null || true
+            log_info "启动脚本已安装到: /usr/bin/github-sync"
+            log_info "现在可以在任何地方使用 'github-sync' 命令"
+        fi
+    else
+        log_warn "无法安装到系统路径，请手动复制 $launcher_script 到 /usr/local/bin/github-sync"
+    fi
+}
+
 # 完整安装
 install() {
     log_info "开始安装GitHub同步工具..."
+
+    # 确保项目目录存在
+    ensure_project_directory
+
+    # 复制脚本到项目目录（如果不在项目目录中运行）
+    local current_script="$(readlink -f "$0")"
+    local target_script="${PROJECT_DIR}/github-sync.sh"
+
+    if [ "$current_script" != "$target_script" ]; then
+        log_info "复制脚本到项目目录..."
+        if cp "$current_script" "$target_script" 2>/dev/null; then
+            chmod +x "$target_script"
+            log_info "脚本已复制到: $target_script"
+        else
+            log_warn "无法复制脚本到项目目录，继续使用当前位置"
+        fi
+    fi
 
     # 安装依赖
     install_dependencies
@@ -1119,11 +1507,17 @@ install() {
         log_info "请编辑配置文件: $CONFIG_FILE"
     fi
 
+    # 创建便捷启动脚本
+    create_launcher_script
+
     # 安装服务
     install_service
 
     log_info "安装完成！"
-    log_info "请编辑配置文件 $CONFIG_FILE 然后运行: $0 start"
+    log_info "项目目录: $PROJECT_DIR"
+    log_info "配置文件: $CONFIG_FILE"
+    log_info "便捷命令: github-sync (如果安装到系统路径)"
+    log_info "请编辑配置文件然后运行: $target_script start"
 }
 
 #==============================================================================
@@ -1181,6 +1575,7 @@ GitHub File Sync Tool for OpenWrt/Kwrt Systems
     • 自动清理: 每天凌晨2-6点清理过期日志
     • 保留策略: 默认保留7天，最多10个文件
 
+项目目录: $PROJECT_DIR
 当前实例: $INSTANCE_NAME
 配置文件: $CONFIG_FILE
 日志文件: $LOG_FILE
@@ -1414,6 +1809,154 @@ wait_for_user_input() {
     echo ""
     echo "按任意键继续..."
     read -r
+}
+
+# 显示进度指示器
+show_progress() {
+    local message="$1"
+    local duration="${2:-3}"
+
+    echo -n "$message"
+    for i in $(seq 1 "$duration"); do
+        echo -n "."
+        sleep 1
+    done
+    echo " 完成"
+}
+
+# 显示加载动画
+show_loading() {
+    local message="$1"
+    local pid="$2"
+    local delay=0.1
+    local spinstr='|/-\'
+
+    echo -n "$message "
+    while kill -0 "$pid" 2>/dev/null; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+    echo " 完成"
+}
+
+# 确认操作函数增强
+confirm_action_enhanced() {
+    local prompt="$1"
+    local default="${2:-N}"
+    local warning="$3"
+
+    echo ""
+    if [ -n "$warning" ]; then
+        echo -e "${YELLOW}⚠️  警告: $warning${NC}"
+        echo ""
+    fi
+
+    while true; do
+        echo -n "$prompt [$default]: "
+        read -r response
+        response=${response:-$default}
+
+        case "$response" in
+            [Yy]|[Yy][Ee][Ss])
+                return 0
+                ;;
+            [Nn]|[Nn][Oo])
+                return 1
+                ;;
+            *)
+                echo "请输入 Y/yes 或 N/no"
+                ;;
+        esac
+    done
+}
+
+# 菜单缓存管理
+update_menu_cache() {
+    local current_time=$(date +%s)
+
+    # 检查缓存是否过期
+    if [ $((current_time - MENU_CACHE_TIME)) -lt $MENU_CACHE_DURATION ]; then
+        return 0  # 缓存仍然有效
+    fi
+
+    # 更新配置状态缓存
+    if [ -f "$CONFIG_FILE" ]; then
+        MENU_CONFIG_CACHE="已配置"
+        # 快速获取同步路径数量
+        local path_count=$(grep -c "|" "$CONFIG_FILE" 2>/dev/null || echo "0")
+        MENU_CONFIG_CACHE="$MENU_CONFIG_CACHE ($path_count 个路径)"
+    else
+        MENU_CONFIG_CACHE="未配置"
+    fi
+
+    # 更新服务状态缓存
+    if is_running; then
+        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        MENU_STATUS_CACHE="运行中 (PID: $pid)"
+    else
+        MENU_STATUS_CACHE="已停止"
+    fi
+
+    MENU_CACHE_TIME=$current_time
+}
+
+# 获取缓存的状态信息
+get_cached_status() {
+    update_menu_cache
+    echo "服务状态: $MENU_STATUS_CACHE"
+    echo "配置状态: $MENU_CONFIG_CACHE"
+}
+
+# 菜单搜索功能
+search_menu_options() {
+    local search_term="$1"
+    echo ""
+    echo "搜索结果 (关键词: $search_term):"
+    echo "================================"
+
+    # 定义菜单项和对应的关键词
+    local menu_items="
+    1:启动服务:start,service,daemon,启动,服务
+    2:停止服务:stop,service,daemon,停止,服务
+    3:重启服务:restart,service,daemon,重启,服务
+    4:查看状态:status,show,查看,状态
+    5:编辑配置:config,edit,配置,编辑
+    6:测试配置:test,config,测试,配置
+    7:查看示例:example,config,示例,配置
+    8:一次性同步:sync,once,同步,一次
+    9:查看日志:log,show,日志,查看
+    10:安装工具:install,tool,安装,工具
+    11:配置向导:wizard,setup,向导,配置
+    12:查看帮助:help,show,帮助,查看
+    "
+
+    local found=false
+    echo "$menu_items" | while read -r line; do
+        [ -z "$line" ] && continue
+
+        local option=$(echo "$line" | cut -d: -f1)
+        local name=$(echo "$line" | cut -d: -f2)
+        local keywords=$(echo "$line" | cut -d: -f3)
+
+        if echo "$keywords" | grep -qi "$search_term"; then
+            echo "  $option) $name"
+            found=true
+        fi
+    done
+
+    if [ "$found" = "false" ]; then
+        echo "  未找到匹配的菜单项"
+    fi
+
+    echo ""
+    echo "输入对应数字执行操作，或按回车返回主菜单"
+    echo -n "选择: "
+    read -r choice
+    echo "$choice"
 }
 
 # 通用的确认输入函数
@@ -2177,11 +2720,11 @@ list_instances() {
     local found_instances=0
 
     # 查找所有配置文件
-    for config_file in "${SCRIPT_DIR}"/github-sync-*.conf; do
+    for config_file in "${PROJECT_DIR}"/github-sync-*.conf; do
         if [ -f "$config_file" ]; then
             local instance_name=$(basename "$config_file" | sed 's/github-sync-//' | sed 's/.conf$//')
-            local pid_file="${SCRIPT_DIR}/github-sync-${instance_name}.pid"
-            local log_file="${SCRIPT_DIR}/github-sync-${instance_name}.log"
+            local pid_file="${PROJECT_DIR}/github-sync-${instance_name}.pid"
+            local log_file="${PROJECT_DIR}/github-sync-${instance_name}.log"
 
             found_instances=$((found_instances + 1))
 
@@ -2234,10 +2777,10 @@ parse_arguments() {
                 if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
                     INSTANCE_NAME="$2"
                     # 重新设置文件路径
-                    CONFIG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.conf"
-                    LOG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.log"
-                    PID_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.pid"
-                    LOCK_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.lock"
+                    CONFIG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.conf"
+                    LOG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.log"
+                    PID_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.pid"
+                    LOCK_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.lock"
                     shift 2
                 else
                     log_error "选项 -i/--instance 需要指定实例名"
@@ -2375,6 +2918,9 @@ show_interactive_menu() {
         echo "GitHub文件同步工具"
         echo "=================================="
         echo ""
+        echo -e "${BLUE}● 项目目录: $PROJECT_DIR${NC}"
+        echo -e "${BLUE}● 当前实例: $INSTANCE_NAME${NC}"
+        echo ""
 
         # 显示当前状态
         if is_running; then
@@ -2431,14 +2977,15 @@ show_interactive_menu() {
         echo "   11) 快速设置向导        [w]"
         echo "   12) 查看帮助信息        [h]"
         echo ""
+        echo "    /) 搜索菜单           [/]    ?) 快速帮助           [?]"
         echo "    0) 退出               [q]"
         echo ""
-        echo -n "请输入选项 [0-12] 或快捷键: "
+        echo -n "请输入选项 [0-12], 快捷键, 或 / 搜索: "
 
         read -r choice
 
         case "$choice" in
-            1|s|S)
+            1|s|S|start)
                 echo ""
                 log_info "启动同步服务..."
                 if start_daemon; then
@@ -2451,7 +2998,7 @@ show_interactive_menu() {
                     read -r
                 fi
                 ;;
-            2|x|X)
+            2|x|X|stop)
                 echo ""
                 log_info "停止同步服务..."
                 if stop_daemon; then
@@ -2464,7 +3011,7 @@ show_interactive_menu() {
                     read -r
                 fi
                 ;;
-            3|r|R)
+            3|r|R|restart)
                 echo ""
                 log_info "重启同步服务..."
                 if restart_daemon; then
@@ -2554,6 +3101,30 @@ show_interactive_menu() {
             12|h|H)
                 echo ""
                 show_help
+                echo ""
+                echo "按任意键继续..."
+                read -r
+                ;;
+            /|search)
+                echo ""
+                echo -n "请输入搜索关键词: "
+                read -r search_term
+                if [ -n "$search_term" ]; then
+                    search_choice=$(search_menu_options "$search_term")
+                    if [ -n "$search_choice" ] && [ "$search_choice" != "" ]; then
+                        # 递归调用处理搜索结果
+                        choice="$search_choice"
+                        continue
+                    fi
+                fi
+                ;;
+            \?|help)
+                echo ""
+                echo "快速帮助:"
+                echo "• 输入数字或快捷键选择功能"
+                echo "• 输入 / 搜索菜单项"
+                echo "• 输入 ? 显示此帮助"
+                echo "• 直接按回车刷新菜单"
                 echo ""
                 echo "按任意键继续..."
                 read -r
