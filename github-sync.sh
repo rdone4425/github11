@@ -28,89 +28,426 @@ readonly DATA_DIR="${PROJECT_DIR}/data"
 readonly TEMP_DIR="${PROJECT_DIR}/tmp"
 readonly BACKUP_DIR="${PROJECT_DIR}/backup"
 
-# 迁移现有文件到新目录结构
+# 全面的文件发现和分析
+discover_github_sync_files() {
+    local discovery_report=$(create_temp_file "discovery_report")
+
+    echo "🔍 正在扫描 GitHub Sync Tool 相关文件..."
+    echo ""
+
+    # 扫描根目录下的相关文件
+    echo "扫描范围: /root/ 目录"
+    echo "搜索模式: github-sync 相关文件"
+    echo ""
+
+    # 发现配置文件
+    echo "📁 配置文件:" >> "$discovery_report"
+    find /root -maxdepth 1 -name "github-sync-*.conf" -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local readable=$([ -r "$file" ] && echo "可读" || echo "不可读")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $readable)" >> "$discovery_report"
+        fi
+    done
+
+    # 发现日志文件
+    echo "📝 日志文件:" >> "$discovery_report"
+    find /root -maxdepth 1 -name "github-sync-*.log*" -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local readable=$([ -r "$file" ] && echo "可读" || echo "不可读")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $readable)" >> "$discovery_report"
+        fi
+    done
+
+    # 发现状态文件
+    echo "📊 状态文件:" >> "$discovery_report"
+    find /root -maxdepth 1 -name ".state_*" -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local readable=$([ -r "$file" ] && echo "可读" || echo "不可读")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $readable)" >> "$discovery_report"
+        fi
+    done
+
+    # 发现PID和锁文件
+    echo "🔒 进程文件:" >> "$discovery_report"
+    find /root -maxdepth 1 \( -name "github-sync-*.pid" -o -name "github-sync-*.lock" \) -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local readable=$([ -r "$file" ] && echo "可读" || echo "不可读")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $readable)" >> "$discovery_report"
+        fi
+    done
+
+    # 发现备份文件
+    echo "💾 备份文件:" >> "$discovery_report"
+    find /root -maxdepth 1 -name "github-sync-*.conf.backup.*" -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local readable=$([ -r "$file" ] && echo "可读" || echo "不可读")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $readable)" >> "$discovery_report"
+        fi
+    done
+
+    # 发现主脚本文件
+    echo "🚀 主程序文件:" >> "$discovery_report"
+    find /root -maxdepth 1 -name "github-sync.sh" -type f 2>/dev/null | while read -r file; do
+        if [ -f "$file" ]; then
+            local size=$(get_file_size "$file")
+            local mtime=$(get_file_mtime "$file")
+            local executable=$([ -x "$file" ] && echo "可执行" || echo "不可执行")
+            echo "  ✓ $file (${size}字节, 修改时间:$(date -d @$mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $mtime '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "未知"), $executable)" >> "$discovery_report"
+        fi
+    done
+
+    # 显示发现报告
+    cat "$discovery_report"
+
+    # 清理临时文件
+    rm -f "$discovery_report"
+
+    echo ""
+    echo "文件发现完成"
+}
+
+# 安全的文件迁移功能
 migrate_existing_files() {
     local migrated_count=0
+    local error_count=0
+    local migration_log=$(create_temp_file "migration_log")
 
-    echo "检查是否需要迁移现有文件..."
+    echo "🚀 开始执行文件迁移计划..."
+    echo ""
+
+    # 创建迁移备份目录
+    local migration_backup="${BACKUP_DIR}/migration_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$migration_backup" 2>/dev/null
+
+    echo "迁移备份目录: $migration_backup" >> "$migration_log"
+    echo "迁移开始时间: $(date)" >> "$migration_log"
+    echo "" >> "$migration_log"
 
     # 迁移配置文件
-    for old_config in "${PROJECT_DIR}"/github-sync-*.conf; do
-        if [ -f "$old_config" ] && [ "$(dirname "$old_config")" = "$PROJECT_DIR" ]; then
+    echo "📁 迁移配置文件..."
+    for old_config in /root/github-sync-*.conf; do
+        if [ -f "$old_config" ] && [ "$(dirname "$old_config")" = "/root" ]; then
             local filename=$(basename "$old_config")
             local new_config="${CONFIG_DIR}/$filename"
+
             if [ ! -f "$new_config" ]; then
-                mv "$old_config" "$new_config" 2>/dev/null && {
-                    echo "已迁移配置文件: $filename"
+                # 创建备份
+                cp "$old_config" "$migration_backup/" 2>/dev/null
+
+                # 执行迁移
+                if mv "$old_config" "$new_config" 2>/dev/null; then
+                    echo "  ✅ $filename → config/"
+                    echo "SUCCESS: $old_config → $new_config" >> "$migration_log"
                     migrated_count=$((migrated_count + 1))
-                }
+                else
+                    echo "  ❌ $filename (迁移失败)"
+                    echo "ERROR: Failed to migrate $old_config" >> "$migration_log"
+                    error_count=$((error_count + 1))
+                fi
+            else
+                echo "  ⚠️  $filename (目标已存在，跳过)"
+                echo "SKIP: $new_config already exists" >> "$migration_log"
             fi
         fi
     done
 
     # 迁移日志文件
-    for old_log in "${PROJECT_DIR}"/github-sync-*.log*; do
-        if [ -f "$old_log" ] && [ "$(dirname "$old_log")" = "$PROJECT_DIR" ]; then
+    echo "📝 迁移日志文件..."
+    for old_log in /root/github-sync-*.log*; do
+        if [ -f "$old_log" ] && [ "$(dirname "$old_log")" = "/root" ]; then
             local filename=$(basename "$old_log")
             local new_log="${LOG_DIR}/$filename"
-            if [ ! -f "$new_log" ]; then
-                mv "$old_log" "$new_log" 2>/dev/null && {
-                    echo "已迁移日志文件: $filename"
-                    migrated_count=$((migrated_count + 1))
-                }
-            fi
-        fi
-    done
 
-    # 迁移PID和锁文件
-    for old_file in "${PROJECT_DIR}"/github-sync-*.pid "${PROJECT_DIR}"/github-sync-*.lock; do
-        if [ -f "$old_file" ] && [ "$(dirname "$old_file")" = "$PROJECT_DIR" ]; then
-            local filename=$(basename "$old_file")
-            local new_file="${DATA_DIR}/$filename"
-            if [ ! -f "$new_file" ]; then
-                mv "$old_file" "$new_file" 2>/dev/null && {
-                    echo "已迁移数据文件: $filename"
+            if [ ! -f "$new_log" ]; then
+                # 创建备份
+                cp "$old_log" "$migration_backup/" 2>/dev/null
+
+                # 执行迁移
+                if mv "$old_log" "$new_log" 2>/dev/null; then
+                    echo "  ✅ $filename → logs/"
+                    echo "SUCCESS: $old_log → $new_log" >> "$migration_log"
                     migrated_count=$((migrated_count + 1))
-                }
+                else
+                    echo "  ❌ $filename (迁移失败)"
+                    echo "ERROR: Failed to migrate $old_log" >> "$migration_log"
+                    error_count=$((error_count + 1))
+                fi
+            else
+                echo "  ⚠️  $filename (目标已存在，跳过)"
+                echo "SKIP: $new_log already exists" >> "$migration_log"
             fi
         fi
     done
 
     # 迁移状态文件
-    for old_state in "${PROJECT_DIR}"/.state_* "${PROJECT_DIR}"/.last_log_cleanup_*; do
-        if [ -f "$old_state" ] && [ "$(dirname "$old_state")" = "$PROJECT_DIR" ]; then
+    echo "📊 迁移状态文件..."
+    for old_state in /root/.state_* /root/.last_log_cleanup_*; do
+        if [ -f "$old_state" ] && [ "$(dirname "$old_state")" = "/root" ]; then
             local filename=$(basename "$old_state")
             # 移除开头的点
             local new_filename="${filename#.}"
             local new_state="${DATA_DIR}/$new_filename"
+
             if [ ! -f "$new_state" ]; then
-                mv "$old_state" "$new_state" 2>/dev/null && {
-                    echo "已迁移状态文件: $new_filename"
+                # 创建备份
+                cp "$old_state" "$migration_backup/" 2>/dev/null
+
+                # 执行迁移
+                if mv "$old_state" "$new_state" 2>/dev/null; then
+                    echo "  ✅ $filename → data/$new_filename"
+                    echo "SUCCESS: $old_state → $new_state" >> "$migration_log"
                     migrated_count=$((migrated_count + 1))
-                }
+                else
+                    echo "  ❌ $filename (迁移失败)"
+                    echo "ERROR: Failed to migrate $old_state" >> "$migration_log"
+                    error_count=$((error_count + 1))
+                fi
+            else
+                echo "  ⚠️  $filename (目标已存在，跳过)"
+                echo "SKIP: $new_state already exists" >> "$migration_log"
+            fi
+        fi
+    done
+
+    # 迁移PID和锁文件
+    echo "🔒 迁移进程文件..."
+    for old_file in /root/github-sync-*.pid /root/github-sync-*.lock; do
+        if [ -f "$old_file" ] && [ "$(dirname "$old_file")" = "/root" ]; then
+            local filename=$(basename "$old_file")
+            local new_file="${DATA_DIR}/$filename"
+
+            if [ ! -f "$new_file" ]; then
+                # 创建备份
+                cp "$old_file" "$migration_backup/" 2>/dev/null
+
+                # 执行迁移
+                if mv "$old_file" "$new_file" 2>/dev/null; then
+                    echo "  ✅ $filename → data/"
+                    echo "SUCCESS: $old_file → $new_file" >> "$migration_log"
+                    migrated_count=$((migrated_count + 1))
+                else
+                    echo "  ❌ $filename (迁移失败)"
+                    echo "ERROR: Failed to migrate $old_file" >> "$migration_log"
+                    error_count=$((error_count + 1))
+                fi
+            else
+                echo "  ⚠️  $filename (目标已存在，跳过)"
+                echo "SKIP: $new_file already exists" >> "$migration_log"
             fi
         fi
     done
 
     # 迁移备份文件
-    for old_backup in "${PROJECT_DIR}"/github-sync-*.conf.backup.*; do
-        if [ -f "$old_backup" ] && [ "$(dirname "$old_backup")" = "$PROJECT_DIR" ]; then
+    echo "💾 迁移备份文件..."
+    for old_backup in /root/github-sync-*.conf.backup.*; do
+        if [ -f "$old_backup" ] && [ "$(dirname "$old_backup")" = "/root" ]; then
             local filename=$(basename "$old_backup")
             local new_backup="${BACKUP_DIR}/$filename"
+
             if [ ! -f "$new_backup" ]; then
-                mv "$old_backup" "$new_backup" 2>/dev/null && {
-                    echo "已迁移备份文件: $filename"
+                # 执行迁移（备份文件不需要再备份）
+                if mv "$old_backup" "$new_backup" 2>/dev/null; then
+                    echo "  ✅ $filename → backup/"
+                    echo "SUCCESS: $old_backup → $new_backup" >> "$migration_log"
                     migrated_count=$((migrated_count + 1))
-                }
+                else
+                    echo "  ❌ $filename (迁移失败)"
+                    echo "ERROR: Failed to migrate $old_backup" >> "$migration_log"
+                    error_count=$((error_count + 1))
+                fi
+            else
+                echo "  ⚠️  $filename (目标已存在，跳过)"
+                echo "SKIP: $new_backup already exists" >> "$migration_log"
             fi
         fi
     done
 
+    # 记录迁移完成时间
+    echo "" >> "$migration_log"
+    echo "迁移完成时间: $(date)" >> "$migration_log"
+    echo "成功迁移: $migrated_count 个文件" >> "$migration_log"
+    echo "迁移失败: $error_count 个文件" >> "$migration_log"
+
+    # 保存迁移日志
+    local final_log="${BACKUP_DIR}/migration_$(date +%Y%m%d_%H%M%S).log"
+    mv "$migration_log" "$final_log" 2>/dev/null
+
+    echo ""
+    echo "📋 迁移总结:"
+    echo "  ✅ 成功迁移: $migrated_count 个文件"
+    echo "  ❌ 迁移失败: $error_count 个文件"
+    echo "  📄 迁移日志: $final_log"
+
     if [ "$migrated_count" -gt 0 ]; then
-        echo "文件迁移完成，共迁移 $migrated_count 个文件"
+        echo "  💾 迁移备份: $migration_backup"
+        echo ""
+        echo "🎉 文件迁移完成！所有文件已安全迁移到标准化目录结构中。"
+    elif [ "$error_count" -eq 0 ]; then
+        echo ""
+        echo "ℹ️  无需迁移文件，所有文件已在正确位置。"
+        # 清理空的备份目录
+        rmdir "$migration_backup" 2>/dev/null || true
     else
-        echo "无需迁移文件"
+        echo ""
+        echo "⚠️  迁移过程中遇到错误，请检查迁移日志获取详细信息。"
     fi
+}
+
+# 手动执行文件迁移
+manual_migration() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                          🚀 GitHub Sync Tool 文件迁移                       ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    echo "此功能将扫描并迁移散落在 /root/ 目录下的 GitHub Sync Tool 相关文件"
+    echo "到标准化的项目目录结构中。"
+    echo ""
+
+    # 首先发现文件
+    discover_github_sync_files
+
+    echo ""
+    echo "是否继续执行文件迁移？"
+    echo ""
+    echo "[y] 确定迁移    [n] 取消操作"
+    echo ""
+    echo -n "请选择: "
+    read -r confirm
+
+    case "$confirm" in
+        y|Y|yes|YES)
+            echo ""
+            migrate_existing_files
+            ;;
+        *)
+            echo ""
+            echo "迁移操作已取消"
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 验证迁移结果
+verify_migration() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                          🔍 迁移结果验证                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    local issues=0
+
+    echo "正在验证项目目录结构..."
+    echo ""
+
+    # 验证目录结构
+    echo "📁 目录结构验证:"
+    for dir in "$PROJECT_DIR" "$CONFIG_DIR" "$LOG_DIR" "$DATA_DIR" "$TEMP_DIR" "$BACKUP_DIR"; do
+        if [ -d "$dir" ]; then
+            local perm=$(stat -c%a "$dir" 2>/dev/null || stat -f%A "$dir" 2>/dev/null || echo "未知")
+            echo "  ✅ $dir (权限: $perm)"
+        else
+            echo "  ❌ $dir (不存在)"
+            issues=$((issues + 1))
+        fi
+    done
+
+    echo ""
+    echo "📄 文件位置验证:"
+
+    # 验证配置文件
+    if [ -f "$CONFIG_FILE" ]; then
+        local size=$(get_file_size "$CONFIG_FILE")
+        echo "  ✅ 配置文件: $CONFIG_FILE (${size}字节)"
+    else
+        echo "  ⚠️  配置文件: $CONFIG_FILE (不存在)"
+    fi
+
+    # 验证日志文件
+    if [ -f "$LOG_FILE" ]; then
+        local size=$(get_file_size "$LOG_FILE")
+        echo "  ✅ 日志文件: $LOG_FILE (${size}字节)"
+    else
+        echo "  ⚠️  日志文件: $LOG_FILE (不存在)"
+    fi
+
+    # 验证数据文件
+    local data_files=0
+    for file in "$DATA_DIR"/*; do
+        if [ -f "$file" ]; then
+            local filename=$(basename "$file")
+            local size=$(get_file_size "$file")
+            echo "  ✅ 数据文件: $filename (${size}字节)"
+            data_files=$((data_files + 1))
+        fi
+    done
+
+    if [ "$data_files" -eq 0 ]; then
+        echo "  ℹ️  数据目录为空"
+    fi
+
+    # 验证备份文件
+    local backup_files=0
+    for file in "$BACKUP_DIR"/*; do
+        if [ -f "$file" ]; then
+            local filename=$(basename "$file")
+            local size=$(get_file_size "$file")
+            echo "  ✅ 备份文件: $filename (${size}字节)"
+            backup_files=$((backup_files + 1))
+        fi
+    done
+
+    if [ "$backup_files" -eq 0 ]; then
+        echo "  ℹ️  备份目录为空"
+    fi
+
+    echo ""
+    echo "🔍 残留文件检查:"
+
+    # 检查根目录下是否还有残留文件
+    local remaining_files=0
+    for pattern in "github-sync-*.conf" "github-sync-*.log*" ".state_*" "github-sync-*.pid" "github-sync-*.lock" "github-sync-*.conf.backup.*"; do
+        for file in /root/$pattern; do
+            if [ -f "$file" ]; then
+                echo "  ⚠️  残留文件: $file"
+                remaining_files=$((remaining_files + 1))
+            fi
+        done
+    done
+
+    if [ "$remaining_files" -eq 0 ]; then
+        echo "  ✅ 无残留文件"
+    else
+        echo "  ⚠️  发现 $remaining_files 个残留文件"
+        issues=$((issues + 1))
+    fi
+
+    echo ""
+    echo "📊 验证总结:"
+    if [ "$issues" -eq 0 ]; then
+        echo "  ✅ 迁移验证通过，所有文件已正确迁移到标准化目录结构"
+    else
+        echo "  ⚠️  发现 $issues 个问题，建议检查迁移结果"
+    fi
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
 }
 
 # 确保项目目录结构存在
@@ -3479,258 +3816,558 @@ test_config() {
 # 交互式菜单界面
 #==============================================================================
 
-# 显示交互式菜单
+# 现代化菜单界面设计
 show_interactive_menu() {
-    # 检查是否首次运行 - 简化逻辑，直接进入主菜单
-    # 如果没有配置文件，在主菜单中会显示"未配置"状态
-    # 用户可以通过菜单选项进行配置
-
     while true; do
-        clear
-        echo "=================================="
-        echo "GitHub File Sync Tool"
-        echo "GitHub文件同步工具"
-        echo "=================================="
-        echo ""
-        echo -e "${BLUE}● 项目目录: $PROJECT_DIR${NC}"
-        echo -e "${BLUE}● 当前实例: $INSTANCE_NAME${NC}"
-        echo ""
-
-        # 显示当前状态
-        if is_running; then
-            echo -e "${GREEN}● 服务状态: 运行中${NC} (PID: $(cat "$PID_FILE" 2>/dev/null || echo "未知"))"
-        else
-            echo -e "${RED}● 服务状态: 已停止${NC}"
-        fi
-
-        # 显示配置状态
-        if [ -f "$CONFIG_FILE" ]; then
-            echo -e "${GREEN}● 配置文件: 已存在${NC}"
-            # 显示配置的同步路径数量
-            if [ -r "$CONFIG_FILE" ]; then
-                local path_count=$(grep -c "|" "$CONFIG_FILE" 2>/dev/null || echo "0")
-                echo -e "${BLUE}● 同步路径: $path_count 个${NC}"
-            fi
-        else
-            echo -e "${YELLOW}● 配置文件: 未配置${NC}"
-            echo -e "${BLUE}  提示: 选择选项 11 运行快速设置向导，或选择选项 5 手动编辑配置${NC}"
-        fi
-
-        # 显示最近日志
-        if [ -f "$LOG_FILE" ]; then
-            local log_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
-            if [ "$log_size" -gt 0 ]; then
-                echo -e "${BLUE}● 日志文件: $(($log_size / 1024))KB${NC}"
-                # 显示最后一条日志
-                local last_log=$(tail -1 "$LOG_FILE" 2>/dev/null | cut -d']' -f3- | sed 's/^ *//')
-                if [ -n "$last_log" ]; then
-                    echo -e "${BLUE}● 最近日志: $last_log${NC}"
-                fi
-            fi
-        fi
-
-        echo ""
-        echo "请选择操作："
-        echo ""
-
-        # 根据配置状态调整菜单显示
-        if [ ! -f "$CONFIG_FILE" ]; then
-            echo "  ${YELLOW}首次配置 (推荐):${NC}"
-            echo "   ${YELLOW}11) 快速设置向导        [w] ← 推荐首次使用${NC}"
-            echo "    5) 手动编辑配置文件    [c]"
-            echo "    7) 查看配置示例        [v]"
-            echo ""
-        fi
-
-        echo "  服务管理:"
-        echo "    1) 启动同步服务        [s]"
-        echo "    2) 停止同步服务        [x]"
-        echo "    3) 重启同步服务        [r]"
-        echo "    4) 查看服务状态        [t]"
-        echo ""
-        echo "  配置管理:"
-        echo "    5) 编辑配置文件        [c]"
-        echo "    6) 测试配置            [e]"
-        echo "    7) 查看配置示例        [v]"
-        echo ""
-        echo "  同步操作:"
-        echo "    8) 执行一次性同步      [y]"
-        echo "    9) 查看同步日志        [l]"
-        echo ""
-        echo "  系统管理:"
-        echo "   10) 安装/重新安装工具   [i]"
-        echo "   11) 快速设置向导        [w]"
-        echo "   12) 查看帮助信息        [h]"
-        echo ""
-        echo "    /) 搜索菜单           [/]    ?) 快速帮助           [?]"
-        echo "    0) 退出               [q]"
-        echo ""
-        echo -n "请输入选项 [0-12], 快捷键, 或 / 搜索: "
-
-        read -r choice
-
-        case "$choice" in
-            1|s|S|start)
-                echo ""
-                log_info "启动同步服务..."
-                if start_daemon; then
-                    echo ""
-                    echo "按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "启动失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            2|x|X|stop)
-                echo ""
-                log_info "停止同步服务..."
-                if stop_daemon; then
-                    echo ""
-                    echo "按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "停止失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            3|r|R|restart)
-                echo ""
-                log_info "重启同步服务..."
-                if restart_daemon; then
-                    echo ""
-                    echo "按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "重启失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            4|t|T)
-                echo ""
-                show_status
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            5|c|C)
-                echo ""
-                log_info "编辑配置文件..."
-                edit_config
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            6|e|E)
-                echo ""
-                if test_config; then
-                    echo ""
-                    echo "配置测试通过，按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "配置测试失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            7|v|V)
-                echo ""
-                show_config_example
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            8|y|Y)
-                echo ""
-                log_info "执行一次性同步..."
-                if run_sync_once; then
-                    echo ""
-                    echo "同步完成，按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "同步失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            9|l|L)
-                echo ""
-                show_logs
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            10|i|I)
-                echo ""
-                log_info "安装/重新安装工具..."
-                if install; then
-                    echo ""
-                    echo "安装完成，按任意键继续..."
-                    read -r
-                else
-                    echo ""
-                    echo "安装失败，按任意键继续..."
-                    read -r
-                fi
-                ;;
-            11|w|W)
-                echo ""
-                run_setup_wizard
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            12|h|H)
-                echo ""
-                show_help
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            /|search)
-                echo ""
-                echo -n "请输入搜索关键词: "
-                read -r search_term
-                if [ -n "$search_term" ]; then
-                    search_choice=$(search_menu_options "$search_term")
-                    if [ -n "$search_choice" ] && [ "$search_choice" != "" ]; then
-                        # 递归调用处理搜索结果
-                        choice="$search_choice"
-                        continue
-                    fi
-                fi
-                ;;
-            \?|help)
-                echo ""
-                echo "快速帮助:"
-                echo "• 输入数字或快捷键选择功能"
-                echo "• 输入 / 搜索菜单项"
-                echo "• 输入 ? 显示此帮助"
-                echo "• 直接按回车刷新菜单"
-                echo ""
-                echo "按任意键继续..."
-                read -r
-                ;;
-            0|q|Q)
-                echo ""
-                log_info "退出程序"
-                exit 0
-                ;;
-            "")
-                # 用户直接按回车，刷新菜单
-                continue
-                ;;
-            *)
-                echo ""
-                log_error "无效选项: $choice"
-                echo "按任意键继续..."
-                read -r
-                ;;
-        esac
+        show_main_dashboard
+        handle_menu_input
     done
+}
+
+# 显示主仪表板
+show_main_dashboard() {
+    clear
+
+    # 顶部标题栏
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                          🚀 GitHub File Sync Tool                           ║"
+    echo "║                             GitHub文件同步工具                              ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # 系统状态面板
+    show_status_panel
+    echo ""
+
+    # 主菜单面板
+    show_main_menu_panel
+    echo ""
+
+    # 底部操作栏
+    show_bottom_action_bar
+}
+
+# 显示状态面板
+show_status_panel() {
+    echo "┌─ 📊 系统状态 ─────────────────────────────────────────────────────────────────┐"
+
+    # 服务状态
+    local service_status_icon service_status_text service_status_color
+    if is_running; then
+        service_status_icon="🟢"
+        service_status_text="运行中"
+        service_status_color="${GREEN}"
+        local pid=$(cat "$PID_FILE" 2>/dev/null || echo "未知")
+        echo "│ ${service_status_icon} 服务状态: ${service_status_color}${service_status_text}${NC} (PID: $pid)"
+    else
+        service_status_icon="🔴"
+        service_status_text="已停止"
+        service_status_color="${RED}"
+        echo "│ ${service_status_icon} 服务状态: ${service_status_color}${service_status_text}${NC}"
+    fi
+
+    # 配置状态
+    local config_status_icon config_status_text config_status_color
+    if [ -f "$CONFIG_FILE" ]; then
+        config_status_icon="✅"
+        config_status_text="已配置"
+        config_status_color="${GREEN}"
+        local path_count=$(grep -c "|" "$CONFIG_FILE" 2>/dev/null || echo "0")
+        echo "│ ${config_status_icon} 配置状态: ${config_status_color}${config_status_text}${NC} ($path_count 个同步路径)"
+    else
+        config_status_icon="⚠️"
+        config_status_text="未配置"
+        config_status_color="${YELLOW}"
+        echo "│ ${config_status_icon} 配置状态: ${config_status_color}${config_status_text}${NC}"
+    fi
+
+    # 实例信息
+    echo "│ 📁 项目目录: ${BLUE}$PROJECT_DIR${NC}"
+    echo "│ 🏷️  当前实例: ${BLUE}$INSTANCE_NAME${NC}"
+
+    # 日志状态
+    if [ -f "$LOG_FILE" ]; then
+        local log_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
+        if [ "$log_size" -gt 0 ]; then
+            local log_size_kb=$(($log_size / 1024))
+            echo "│ 📝 日志大小: ${BLUE}${log_size_kb}KB${NC}"
+
+            # 显示最后一条日志（截断显示）
+            local last_log=$(tail -1 "$LOG_FILE" 2>/dev/null | cut -d']' -f3- | sed 's/^ *//')
+            if [ -n "$last_log" ]; then
+                # 截断过长的日志
+                if [ ${#last_log} -gt 50 ]; then
+                    last_log="${last_log:0:47}..."
+                fi
+                echo "│ 📄 最近日志: ${BLUE}$last_log${NC}"
+            fi
+        fi
+    fi
+
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+}
+
+# 显示主菜单面板
+show_main_menu_panel() {
+    # 根据配置状态显示不同的菜单布局
+    if [ ! -f "$CONFIG_FILE" ]; then
+        show_first_time_menu
+    else
+        show_normal_menu
+    fi
+}
+
+# 首次使用菜单
+show_first_time_menu() {
+    echo "┌─ 🎯 首次配置向导 ─────────────────────────────────────────────────────────────┐"
+    echo "│                                                                               │"
+    echo "│  ${YELLOW}🚀 快速开始${NC}                    ${BLUE}📚 学习资源${NC}                      │"
+    echo "│  ${YELLOW}[w]${NC} 快速设置向导 (推荐)        ${BLUE}[v]${NC} 查看配置示例                │"
+    echo "│  ${YELLOW}[c]${NC} 手动编辑配置               ${BLUE}[h]${NC} 查看帮助文档                │"
+    echo "│                                                                               │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "┌─ ⚙️  系统管理 ────────────────────────────────────────────────────────────────┐"
+    echo "│  [i] 安装系统服务    [t] 查看系统状态    [/] 搜索功能    [?] 快速帮助        │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+}
+
+# 正常使用菜单
+show_normal_menu() {
+    echo "┌─ 🎛️  服务控制 ────────────────────────────────────────────────────────────────┐"
+    echo "│                                                                               │"
+    if is_running; then
+        echo "│  ${GREEN}[x]${NC} 停止服务      ${BLUE}[r]${NC} 重启服务      ${BLUE}[t]${NC} 查看状态      ${BLUE}[l]${NC} 查看日志    │"
+    else
+        echo "│  ${GREEN}[s]${NC} 启动服务      ${BLUE}[r]${NC} 重启服务      ${BLUE}[t]${NC} 查看状态      ${BLUE}[l]${NC} 查看日志    │"
+    fi
+    echo "│                                                                               │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "┌─ ⚙️  配置管理 ────────────────────────────────────────────────────────────────┐"
+    echo "│                                                                               │"
+    echo "│  ${BLUE}[c]${NC} 编辑配置      ${BLUE}[e]${NC} 测试配置      ${BLUE}[w]${NC} 配置向导      ${BLUE}[v]${NC} 配置示例    │"
+    echo "│                                                                               │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "┌─ 🔄 同步操作 ─────────────────────────────────────────────────────────────────┐"
+    echo "│                                                                               │"
+    echo "│  ${GREEN}[y]${NC} 立即同步      ${BLUE}[l]${NC} 查看日志      ${BLUE}[t]${NC} 同步状态      ${BLUE}[h]${NC} 帮助文档    │"
+    echo "│                                                                               │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "┌─ 🛠️  系统工具 ────────────────────────────────────────────────────────────────┐"
+    echo "│  [i] 系统安装    [m] 文件迁移    [/] 搜索功能    [?] 快速帮助    [0] 退出    │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+}
+
+# 显示底部操作栏
+show_bottom_action_bar() {
+    echo "┌─ 💡 操作提示 ─────────────────────────────────────────────────────────────────┐"
+    echo "│ • 输入字母快捷键或数字选择功能  • 输入 / 搜索菜单  • 输入 ? 获取帮助         │"
+    echo "│ • 直接按回车刷新界面           • 输入 0 或 q 退出程序                        │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo -n "🎯 请选择操作: "
+}
+
+# 处理菜单输入
+handle_menu_input() {
+    read -r choice
+
+    case "$choice" in
+        # 服务管理
+        s|S|start|1)
+            execute_with_feedback "启动同步服务" start_daemon "🚀"
+            ;;
+        x|X|stop|2)
+            execute_with_feedback "停止同步服务" stop_daemon "🛑"
+            ;;
+        r|R|restart|3)
+            execute_with_feedback "重启同步服务" restart_daemon "🔄"
+            ;;
+        t|T|status|4)
+            show_detailed_status
+            ;;
+
+        # 配置管理
+        c|C|config|5)
+            execute_with_feedback "编辑配置文件" edit_config "⚙️"
+            ;;
+        e|E|test|6)
+            execute_with_feedback "测试配置" test_config "🧪"
+            ;;
+        v|V|example|7)
+            show_config_example_modern
+            ;;
+        w|W|wizard|11)
+            run_setup_wizard
+            ;;
+
+        # 同步操作
+        y|Y|sync|8)
+            execute_with_feedback "执行一次性同步" run_sync_once "🔄"
+            ;;
+        l|L|logs|9)
+            show_logs_modern
+            ;;
+
+        # 系统管理
+        i|I|install|10)
+            execute_with_feedback "安装/重新安装工具" install "🛠️"
+            ;;
+        m|M|migrate)
+            manual_migration
+            ;;
+        h|H|help|12)
+            show_help_modern
+            ;;
+
+        # 特殊功能
+        /|search)
+            handle_search_function
+            ;;
+        \?|help)
+            show_quick_help
+            ;;
+        0|q|Q|exit)
+            show_exit_confirmation
+            ;;
+        "")
+            # 用户直接按回车，刷新菜单
+            return 0
+            ;;
+        *)
+            show_invalid_input_message "$choice"
+            ;;
+    esac
+}
+
+# 带反馈的操作执行
+execute_with_feedback() {
+    local action_name="$1"
+    local command="$2"
+    local icon="${3:-⚡}"
+
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              ${icon} ${action_name}                              ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # 显示进度指示
+    echo "正在执行操作，请稍候..."
+    echo ""
+
+    # 执行命令
+    if $command; then
+        echo ""
+        echo "┌─ ✅ 操作成功 ─────────────────────────────────────────────────────────────────┐"
+        echo "│ ${action_name} 已成功完成                                                     │"
+        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    else
+        echo ""
+        echo "┌─ ❌ 操作失败 ─────────────────────────────────────────────────────────────────┐"
+        echo "│ ${action_name} 执行失败，请检查日志获取详细信息                               │"
+        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    fi
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 显示详细状态
+show_detailed_status() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              📊 系统详细状态                                 ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # 调用原有的状态显示函数
+    show_status
+
+    echo ""
+    echo "┌─ 📈 性能统计 ─────────────────────────────────────────────────────────────────┐"
+
+    # 显示内存使用情况
+    if is_running; then
+        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            local mem_usage=$(ps -o rss= -p "$pid" 2>/dev/null || echo "0")
+            local mem_mb=$((mem_usage / 1024))
+            echo "│ 💾 内存使用: ${mem_mb}MB"
+
+            local cpu_usage=$(ps -o %cpu= -p "$pid" 2>/dev/null || echo "0.0")
+            echo "│ 🖥️  CPU使用: ${cpu_usage}%"
+        fi
+    fi
+
+    # 显示日志统计
+    if [ -f "$LOG_FILE" ]; then
+        local log_lines=$(wc -l < "$LOG_FILE" 2>/dev/null || echo "0")
+        echo "│ 📝 日志行数: $log_lines"
+
+        local error_count=$(grep -c "ERROR" "$LOG_FILE" 2>/dev/null || echo "0")
+        local warn_count=$(grep -c "WARN" "$LOG_FILE" 2>/dev/null || echo "0")
+        echo "│ ⚠️  警告数量: $warn_count"
+        echo "│ ❌ 错误数量: $error_count"
+    fi
+
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 现代化配置示例显示
+show_config_example_modern() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              📚 配置文件示例                                 ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    show_config_example
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 现代化日志显示
+show_logs_modern() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              📄 同步日志查看                                 ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if [ -f "$LOG_FILE" ]; then
+        echo "┌─ 📊 日志统计 ─────────────────────────────────────────────────────────────────┐"
+        local log_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
+        local log_lines=$(wc -l < "$LOG_FILE" 2>/dev/null || echo "0")
+        echo "│ 文件大小: $(($log_size / 1024))KB  |  总行数: $log_lines"
+        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo ""
+
+        # 显示最近的日志
+        echo "最近的日志记录:"
+        echo "────────────────────────────────────────────────────────────────────────────────"
+        tail -20 "$LOG_FILE" 2>/dev/null || echo "无法读取日志文件"
+        echo "────────────────────────────────────────────────────────────────────────────────"
+    else
+        echo "┌─ ⚠️  提示 ────────────────────────────────────────────────────────────────────┐"
+        echo "│ 日志文件不存在: $LOG_FILE"
+        echo "│ 请先启动同步服务以生成日志文件"
+        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    fi
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 现代化帮助显示
+show_help_modern() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              📖 帮助文档                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    show_help
+
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 搜索功能处理
+handle_search_function() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              🔍 菜单搜索                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    echo -n "🔍 请输入搜索关键词: "
+    read -r search_term
+
+    if [ -n "$search_term" ]; then
+        echo ""
+        search_choice=$(search_menu_options "$search_term")
+        if [ -n "$search_choice" ] && [ "$search_choice" != "" ]; then
+            # 处理搜索结果
+            handle_menu_choice "$search_choice"
+        else
+            echo ""
+            echo "按任意键返回主菜单..."
+            read -r
+        fi
+    else
+        echo ""
+        echo "搜索关键词不能为空"
+        echo "按任意键返回主菜单..."
+        read -r
+    fi
+}
+
+# 快速帮助
+show_quick_help() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              💡 快速帮助                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "┌─ 🎯 快捷键说明 ───────────────────────────────────────────────────────────────┐"
+    echo "│                                                                               │"
+    echo "│  服务控制:  [s] 启动  [x] 停止  [r] 重启  [t] 状态                           │"
+    echo "│  配置管理:  [c] 编辑  [e] 测试  [w] 向导  [v] 示例                           │"
+    echo "│  同步操作:  [y] 同步  [l] 日志                                               │"
+    echo "│  系统工具:  [i] 安装  [h] 帮助  [/] 搜索  [?] 快速帮助                      │"
+    echo "│  程序控制:  [0] 或 [q] 退出程序                                              │"
+    echo "│                                                                               │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "┌─ 🔧 使用技巧 ─────────────────────────────────────────────────────────────────┐"
+    echo "│ • 首次使用请选择 [w] 运行配置向导                                             │"
+    echo "│ • 可以输入完整命令名，如 'start', 'stop', 'config' 等                        │"
+    echo "│ • 直接按回车可以刷新界面状态                                                  │"
+    echo "│ • 使用 [/] 搜索功能快速找到需要的选项                                        │"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 退出确认
+show_exit_confirmation() {
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              👋 退出确认                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # 检查服务状态
+    if is_running; then
+        echo "┌─ ⚠️  注意 ────────────────────────────────────────────────────────────────────┐"
+        echo "│ GitHub同步服务正在运行中                                                      │"
+        echo "│ 退出此界面不会停止后台服务                                                    │"
+        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo ""
+    fi
+
+    echo "确定要退出吗？"
+    echo ""
+    echo "[y] 确定退出    [n] 返回主菜单"
+    echo ""
+    echo -n "请选择: "
+    read -r confirm
+
+    case "$confirm" in
+        y|Y|yes|YES)
+            echo ""
+            echo "👋 感谢使用 GitHub File Sync Tool！"
+            log_info "用户退出程序"
+            exit 0
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
+# 无效输入提示
+show_invalid_input_message() {
+    local input="$1"
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                              ❌ 无效输入                                     ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "┌─ ⚠️  输入错误 ────────────────────────────────────────────────────────────────┐"
+    echo "│ 无效的选项: '$input'"
+    echo "│ 请输入有效的选项或快捷键"
+    echo "└───────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo "💡 提示: 输入 [?] 查看所有可用选项"
+    echo ""
+    echo "按任意键返回主菜单..."
+    read -r
+}
+
+# 处理菜单选择（用于搜索结果）
+handle_menu_choice() {
+    local choice="$1"
+
+    case "$choice" in
+        # 服务管理
+        s|S|start|1)
+            execute_with_feedback "启动同步服务" start_daemon "🚀"
+            ;;
+        x|X|stop|2)
+            execute_with_feedback "停止同步服务" stop_daemon "🛑"
+            ;;
+        r|R|restart|3)
+            execute_with_feedback "重启同步服务" restart_daemon "🔄"
+            ;;
+        t|T|status|4)
+            show_detailed_status
+            ;;
+
+        # 配置管理
+        c|C|config|5)
+            execute_with_feedback "编辑配置文件" edit_config "⚙️"
+            ;;
+        e|E|test|6)
+            execute_with_feedback "测试配置" test_config "🧪"
+            ;;
+        v|V|example|7)
+            show_config_example_modern
+            ;;
+        w|W|wizard|11)
+            run_setup_wizard
+            ;;
+
+        # 同步操作
+        y|Y|sync|8)
+            execute_with_feedback "执行一次性同步" run_sync_once "🔄"
+            ;;
+        l|L|logs|9)
+            show_logs_modern
+            ;;
+
+        # 系统管理
+        i|I|install|10)
+            execute_with_feedback "安装/重新安装工具" install "🛠️"
+            ;;
+        m|M|migrate)
+            manual_migration
+            ;;
+        h|H|help|12)
+            show_help_modern
+            ;;
+
+        # 特殊功能
+        /|search)
+            handle_search_function
+            ;;
+        \?|help)
+            show_quick_help
+            ;;
+        0|q|Q|exit)
+            show_exit_confirmation
+            ;;
+        "")
+            # 用户直接按回车，刷新菜单
+            return 0
+            ;;
+        *)
+            show_invalid_input_message "$choice"
+            ;;
+    esac
 }
 
 # 增强的交互式配置向导
