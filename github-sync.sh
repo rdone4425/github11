@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # GitHub File Sync Tool for OpenWrt/Kwrt Systems
 # 专为OpenWrt/Kwrt系统设计的GitHub文件同步工具
@@ -31,6 +31,32 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# 系统工具缓存 - 避免重复检查
+STAT_CMD=""
+STAT_FORMAT=""
+
+# 初始化系统工具检查
+# 功能: 检测并缓存系统工具的可用性和格式，避免重复检查
+# 参数: 无
+# 返回: 无
+# 副作用: 设置全局变量 STAT_CMD 和 STAT_FORMAT
+init_system_tools() {
+    # 检查stat命令和格式
+    if command -v stat >/dev/null 2>&1; then
+        # 测试GNU stat格式 (Linux)
+        if stat -c%s "$0" >/dev/null 2>&1; then
+            STAT_CMD="stat"
+            STAT_FORMAT="gnu"
+        # 测试BSD stat格式 (macOS, FreeBSD)
+        elif stat -f%z "$0" >/dev/null 2>&1; then
+            STAT_CMD="stat"
+            STAT_FORMAT="bsd"
+        fi
+    fi
+
+    log_debug "系统工具初始化: STAT_CMD=$STAT_CMD, STAT_FORMAT=$STAT_FORMAT"
+}
 
 #==============================================================================
 # 日志和输出函数
@@ -89,6 +115,10 @@ log_info() { log "INFO" "$1"; }
 log_debug() { log "DEBUG" "$1"; }
 
 # 获取文件大小（兼容不同系统）
+# 功能: 获取指定文件的字节大小，兼容GNU和BSD系统
+# 参数: $1 - 文件路径
+# 返回: 文件大小（字节），如果文件不存在返回0
+# 优化: 使用缓存的系统工具信息，避免重复检查
 get_file_size() {
     local file="$1"
     if [ ! -f "$file" ]; then
@@ -96,16 +126,18 @@ get_file_size() {
         return
     fi
 
-    if command -v stat >/dev/null 2>&1; then
-        # 尝试GNU stat (Linux)
-        stat -c%s "$file" 2>/dev/null || \
-        # 尝试BSD stat (macOS, FreeBSD)
-        stat -f%z "$file" 2>/dev/null || \
-        # 回退方案
-        wc -c < "$file" 2>/dev/null || echo 0
-    else
-        echo 0
-    fi
+    # 使用缓存的系统工具信息
+    case "$STAT_FORMAT" in
+        "gnu")
+            stat -c%s "$file" 2>/dev/null || wc -c < "$file" 2>/dev/null || echo 0
+            ;;
+        "bsd")
+            stat -f%z "$file" 2>/dev/null || wc -c < "$file" 2>/dev/null || echo 0
+            ;;
+        *)
+            wc -c < "$file" 2>/dev/null || echo 0
+            ;;
+    esac
 }
 
 # 获取文件修改时间（天数）
@@ -117,15 +149,18 @@ get_file_age_days() {
     fi
 
     local file_mtime
-    if command -v stat >/dev/null 2>&1; then
-        # GNU stat (Linux)
-        file_mtime=$(stat -c %Y "$file" 2>/dev/null) || \
-        # BSD stat (macOS, FreeBSD)
-        file_mtime=$(stat -f %m "$file" 2>/dev/null) || \
-        file_mtime=0
-    else
-        file_mtime=0
-    fi
+    # 使用缓存的系统工具信息
+    case "$STAT_FORMAT" in
+        "gnu")
+            file_mtime=$(stat -c %Y "$file" 2>/dev/null) || file_mtime=0
+            ;;
+        "bsd")
+            file_mtime=$(stat -f %m "$file" 2>/dev/null) || file_mtime=0
+            ;;
+        *)
+            file_mtime=0
+            ;;
+    esac
 
     local current_time=$(date +%s)
     local age_seconds=$((current_time - file_mtime))
@@ -143,33 +178,46 @@ cleanup_old_logs() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local deleted_count=0
     local total_size_freed=0
+    local temp_stats="${SCRIPT_DIR}/.cleanup_stats_$$"
 
-    # 清理基于时间的旧日志
-    find "$log_dir" -name "${log_basename}.*" -type f | while read -r old_log; do
-        local age_days=$(get_file_age_days "$old_log")
-        if [ "$age_days" -gt "$keep_days" ]; then
-            local file_size=$(get_file_size "$old_log")
-            if rm -f "$old_log" 2>/dev/null; then
-                deleted_count=$((deleted_count + 1))
-                total_size_freed=$((total_size_freed + file_size))
-                echo "[$timestamp] [INFO] 已删除过期日志文件: $old_log (年龄: ${age_days}天, 大小: ${file_size}字节)" >> "$LOG_FILE"
+    # 清理基于时间的旧日志 - 避免管道子shell问题
+    find "$log_dir" -name "${log_basename}.*" -type f > "${temp_stats}.files" 2>/dev/null || true
+
+    if [ -f "${temp_stats}.files" ]; then
+        while read -r old_log; do
+            [ -z "$old_log" ] && continue
+            local age_days=$(get_file_age_days "$old_log")
+            if [ "$age_days" -gt "$keep_days" ]; then
+                local file_size=$(get_file_size "$old_log")
+                if rm -f "$old_log" 2>/dev/null; then
+                    deleted_count=$((deleted_count + 1))
+                    total_size_freed=$((total_size_freed + file_size))
+                    echo "[$timestamp] [INFO] 已删除过期日志文件: $old_log (年龄: ${age_days}天, 大小: ${file_size}字节)" >> "$LOG_FILE"
+                fi
             fi
-        fi
-    done
+        done < "${temp_stats}.files"
+        rm -f "${temp_stats}.files"
+    fi
 
     # 限制日志文件数量
-    local log_count=$(find "$log_dir" -name "${log_basename}.*" -type f | wc -l)
+    local log_count=$(find "$log_dir" -name "${log_basename}.*" -type f 2>/dev/null | wc -l)
     if [ "$log_count" -gt "$max_files" ]; then
-        # 删除最旧的日志文件
-        find "$log_dir" -name "${log_basename}.*" -type f -exec ls -t {} + | \
-        tail -n +$((max_files + 1)) | while read -r old_log; do
-            local file_size=$(get_file_size "$old_log")
-            if rm -f "$old_log" 2>/dev/null; then
-                deleted_count=$((deleted_count + 1))
-                total_size_freed=$((total_size_freed + file_size))
-                echo "[$timestamp] [INFO] 已删除多余日志文件: $old_log (大小: ${file_size}字节)" >> "$LOG_FILE"
-            fi
-        done
+        # 删除最旧的日志文件 - 避免管道子shell问题
+        find "$log_dir" -name "${log_basename}.*" -type f -exec ls -t {} + 2>/dev/null | \
+        tail -n +$((max_files + 1)) > "${temp_stats}.excess" 2>/dev/null || true
+
+        if [ -f "${temp_stats}.excess" ]; then
+            while read -r old_log; do
+                [ -z "$old_log" ] && continue
+                local file_size=$(get_file_size "$old_log")
+                if rm -f "$old_log" 2>/dev/null; then
+                    deleted_count=$((deleted_count + 1))
+                    total_size_freed=$((total_size_freed + file_size))
+                    echo "[$timestamp] [INFO] 已删除多余日志文件: $old_log (大小: ${file_size}字节)" >> "$LOG_FILE"
+                fi
+            done < "${temp_stats}.excess"
+            rm -f "${temp_stats}.excess"
+        fi
     fi
 
     # 记录清理统计
@@ -179,6 +227,9 @@ cleanup_old_logs() {
     else
         echo "[$timestamp] [INFO] 日志清理完成: 无需删除文件" >> "$LOG_FILE"
     fi
+
+    # 清理临时文件
+    rm -f "${temp_stats}".* 2>/dev/null || true
 }
 
 # 日志文件轮转和清理
@@ -389,34 +440,80 @@ upload_file_to_github() {
         return 1
     fi
     
+    # 检查必要工具
+    if ! command -v base64 >/dev/null 2>&1; then
+        log_error "base64 命令不可用，无法编码文件"
+        return 1
+    fi
+
+    if ! command -v curl >/dev/null 2>&1; then
+        log_error "curl 命令不可用，无法上传文件"
+        return 1
+    fi
+
     # Base64编码文件内容
     local content
-    content=$(base64 -w 0 "$local_file")
-    
+    if ! content=$(base64 -w 0 "$local_file" 2>/dev/null); then
+        log_error "文件Base64编码失败: $local_file"
+        return 1
+    fi
+
+    # 验证编码结果
+    if [ -z "$content" ]; then
+        log_error "文件编码结果为空: $local_file"
+        return 1
+    fi
+
     # 获取现有文件的SHA（如果存在）
     local sha
     sha=$(get_file_sha "$repo" "$target_path" "$branch")
-    
+
+    # 验证必要参数
+    if [ -z "$commit_message" ]; then
+        commit_message="Update $target_path"
+        log_warn "提交消息为空，使用默认消息: $commit_message"
+    fi
+
+    # 转义JSON字符串中的特殊字符
+    local escaped_message=$(echo "$commit_message" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+
     # 构建API请求
     local json_data
     if [ -n "$sha" ]; then
         # 更新现有文件
-        json_data="{\"message\":\"$commit_message\",\"content\":\"$content\",\"sha\":\"$sha\",\"branch\":\"$branch\"}"
+        json_data="{\"message\":\"$escaped_message\",\"content\":\"$content\",\"sha\":\"$sha\",\"branch\":\"$branch\"}"
+        log_debug "更新现有文件，SHA: $sha"
     else
         # 创建新文件
-        json_data="{\"message\":\"$commit_message\",\"content\":\"$content\",\"branch\":\"$branch\"}"
+        json_data="{\"message\":\"$escaped_message\",\"content\":\"$content\",\"branch\":\"$branch\"}"
+        log_debug "创建新文件"
     fi
-    
+
     # 发送请求
     local response
+    local curl_exit_code
     response=$(curl -s -X PUT -H "Authorization: token $GITHUB_TOKEN" \
         -H "Content-Type: application/json" \
         -d "$json_data" \
-        "https://api.github.com/repos/$repo/contents/$target_path")
-    
+        "https://api.github.com/repos/$repo/contents/$target_path" 2>&1)
+    curl_exit_code=$?
+
+    # 检查curl命令是否成功
+    if [ $curl_exit_code -ne 0 ]; then
+        log_error "curl命令执行失败 (退出码: $curl_exit_code): $local_file"
+        log_debug "curl错误信息: $response"
+        return 1
+    fi
+
+    # 检查API响应
     if echo "$response" | grep -q '"sha"'; then
         log_info "文件上传成功: $local_file -> $repo/$target_path"
         return 0
+    elif echo "$response" | grep -q '"message".*"error"'; then
+        local error_msg=$(echo "$response" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
+        log_error "GitHub API错误: $error_msg"
+        log_debug "完整API响应: $response"
+        return 1
     else
         log_error "文件上传失败: $local_file"
         log_debug "GitHub API响应: $response"
@@ -452,16 +549,18 @@ get_file_mtime() {
         return
     fi
 
-    # 尝试不同的stat命令格式
-    if command -v stat >/dev/null 2>&1; then
-        # GNU stat (Linux)
-        stat -c %Y "$file" 2>/dev/null || \
-        # BSD stat (macOS, FreeBSD)
-        stat -f %m "$file" 2>/dev/null || \
-        echo 0
-    else
-        echo 0
-    fi
+    # 使用缓存的系统工具信息
+    case "$STAT_FORMAT" in
+        "gnu")
+            stat -c %Y "$file" 2>/dev/null || echo 0
+            ;;
+        "bsd")
+            stat -f %m "$file" 2>/dev/null || echo 0
+            ;;
+        *)
+            echo 0
+            ;;
+    esac
 }
 
 # 扫描目录中的文件变化
@@ -484,13 +583,28 @@ scan_directory_changes() {
         local stored_mtime=$(grep "^$watch_path:" "$state_file" | cut -d: -f2)
 
         if [ "$current_mtime" != "$stored_mtime" ]; then
-            echo "$watch_path"
-            # 更新状态文件
-            {
-                grep -v "^$watch_path:" "$state_file" 2>/dev/null || true
-                echo "$watch_path:$current_mtime"
-            } > "${state_file}.tmp"
-            mv "${state_file}.tmp" "$state_file"
+            # 再次检查文件修改时间，确保文件稳定（避免正在写入的文件）
+            sleep 0.1
+            local verify_mtime=$(get_file_mtime "$watch_path")
+
+            if [ "$current_mtime" = "$verify_mtime" ]; then
+                echo "$watch_path"
+                # 原子性更新状态文件
+                local temp_state="${state_file}.tmp.$$"
+                {
+                    grep -v "^$watch_path:" "$state_file" 2>/dev/null || true
+                    echo "$watch_path:$verify_mtime"
+                } > "$temp_state"
+
+                if mv "$temp_state" "$state_file" 2>/dev/null; then
+                    log_debug "状态文件更新成功: $watch_path"
+                else
+                    log_warn "状态文件更新失败: $watch_path"
+                    rm -f "$temp_state" 2>/dev/null || true
+                fi
+            else
+                log_debug "文件仍在变化，跳过: $watch_path"
+            fi
         fi
     elif [ -d "$watch_path" ]; then
         # 目录监控
@@ -638,26 +752,57 @@ process_sync_path() {
 
 # 主监控循环
 monitor_loop() {
-    log_info "开始文件监控，轮询间隔: ${POLL_INTERVAL}秒"
+    # 验证轮询间隔
+    local poll_interval=${POLL_INTERVAL:-$DEFAULT_POLL_INTERVAL}
+
+    # 确保轮询间隔是有效数字且不小于5秒
+    if ! echo "$poll_interval" | grep -qE '^[0-9]+$' || [ "$poll_interval" -lt 5 ]; then
+        log_warn "无效的轮询间隔: $poll_interval，使用默认值: $DEFAULT_POLL_INTERVAL"
+        poll_interval=$DEFAULT_POLL_INTERVAL
+    fi
+
+    log_info "开始文件监控，轮询间隔: ${poll_interval}秒"
 
     # 启动时检查是否需要清理日志
     periodic_log_cleanup
 
+    # 循环计数器，用于调试和监控
+    local loop_count=0
+
     while true; do
+        loop_count=$((loop_count + 1))
+        log_debug "监控循环第 $loop_count 次"
+
         # 轮转日志（基于文件大小）
         rotate_log
 
         # 每天清理一次日志
         periodic_log_cleanup
 
+        # 验证同步路径配置
+        if [ -z "$SYNC_PATHS" ]; then
+            log_error "同步路径配置为空，停止监控"
+            break
+        fi
+
         # 处理所有同步路径
         echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
-            [ -n "$local_path" ] && process_sync_path "$local_path|$repo|$branch|$target_path"
+            if [ -n "$local_path" ]; then
+                process_sync_path "$local_path|$repo|$branch|$target_path" || {
+                    log_warn "处理同步路径失败: $local_path"
+                }
+            fi
         done
 
-        # 等待下一次轮询
-        sleep "$POLL_INTERVAL"
+        # 等待下一次轮询，确保sleep命令成功
+        log_debug "等待 ${poll_interval} 秒后进行下一次轮询"
+        if ! sleep "$poll_interval"; then
+            log_error "sleep命令失败，可能收到信号，退出监控循环"
+            break
+        fi
     done
+
+    log_info "监控循环结束"
 }
 
 #==============================================================================
@@ -691,10 +836,43 @@ start_daemon() {
         return 1
     fi
 
+    # 设置清理函数，确保异常退出时清理资源
+    cleanup_on_error() {
+        log_error "启动过程中发生错误，清理资源..."
+        rm -f "$LOCK_FILE" "$PID_FILE"
+        exit 1
+    }
+
+    # 设置错误处理
+    trap 'cleanup_on_error' ERR
+
     log_info "启动GitHub同步服务..."
 
     # 验证配置
-    if ! load_config || ! validate_config; then
+    if ! load_config; then
+        log_error "配置文件加载失败"
+        rm -f "$LOCK_FILE"
+        return 1
+    fi
+
+    if ! validate_config; then
+        log_error "配置验证失败"
+        rm -f "$LOCK_FILE"
+        return 1
+    fi
+
+    # 检查日志文件目录是否可写
+    local log_dir=$(dirname "$LOG_FILE")
+    if [ ! -d "$log_dir" ]; then
+        if ! mkdir -p "$log_dir" 2>/dev/null; then
+            log_error "无法创建日志目录: $log_dir"
+            rm -f "$LOCK_FILE"
+            return 1
+        fi
+    fi
+
+    if [ ! -w "$log_dir" ]; then
+        log_error "日志目录不可写: $log_dir"
         rm -f "$LOCK_FILE"
         return 1
     fi
@@ -708,25 +886,45 @@ start_daemon() {
         # 记录PID
         echo $$ > "$PID_FILE"
 
+        # 验证PID文件写入成功
+        if [ ! -f "$PID_FILE" ]; then
+            log_error "无法创建PID文件: $PID_FILE"
+            rm -f "$LOCK_FILE"
+            exit 1
+        fi
+
         # 清理锁文件
         rm -f "$LOCK_FILE"
 
         # 设置信号处理
-        trap 'cleanup_and_exit' TERM INT
+        trap 'cleanup_and_exit' TERM INT HUP
 
         # 开始监控
         monitor_loop
     } >> "$LOG_FILE" 2>&1 &
 
+    # 记录后台进程PID
+    local daemon_pid=$!
+
     # 等待一下确保启动成功
     sleep 2
 
+    # 验证启动状态
     if is_running; then
         log_info "GitHub同步服务启动成功 (PID: $(cat "$PID_FILE"))"
+        # 清理错误处理
+        trap - ERR
         return 0
     else
         log_error "GitHub同步服务启动失败"
-        rm -f "$LOCK_FILE"
+        # 清理资源
+        rm -f "$LOCK_FILE" "$PID_FILE"
+        # 尝试杀死可能的僵尸进程
+        if kill -0 "$daemon_pid" 2>/dev/null; then
+            kill "$daemon_pid" 2>/dev/null || true
+        fi
+        # 清理错误处理
+        trap - ERR
         return 1
     fi
 }
@@ -1021,6 +1219,59 @@ edit_config() {
     show_config_edit_menu
 }
 
+# 显示配置摘要
+show_config_summary() {
+    # 加载并显示当前配置
+    if load_config 2>/dev/null; then
+        echo "[配置] 当前配置摘要:"
+        echo "=================================================================="
+        echo "  GitHub用户: ${GITHUB_USERNAME:-未设置}"
+        echo "  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
+        echo "  日志级别: ${LOG_LEVEL:-未设置}"
+
+        # 统计同步路径数量
+        if [ -n "$SYNC_PATHS" ]; then
+            local path_count=$(echo "$SYNC_PATHS" | grep -c "|" 2>/dev/null || echo "0")
+            echo "  同步路径: $path_count 个"
+        else
+            echo "  同步路径: 未配置"
+        fi
+
+        echo "  自动提交: ${AUTO_COMMIT:-未设置}"
+        echo "=================================================================="
+    else
+        echo "[警告] 无法加载配置文件或配置文件格式错误"
+        echo "=================================================================="
+    fi
+}
+
+# 显示配置编辑菜单选项
+show_config_menu_options() {
+    echo ""
+    echo "[编辑] 配置编辑选项:"
+    echo ""
+    echo "  基本配置:"
+    echo "    1) 编辑GitHub凭据        [g]"
+    echo "    2) 编辑同步路径          [p]"
+    echo "    3) 编辑监控设置          [m]"
+    echo ""
+    echo "  高级配置:"
+    echo "    4) 编辑文件过滤规则      [f]"
+    echo "    5) 编辑提交设置          [t]"
+    echo "    6) 编辑网络设置          [n]"
+    echo ""
+    echo "  配置管理:"
+    echo "    7) 查看完整配置文件      [v]"
+    echo "    8) 重置为默认配置        [r]"
+    echo "    9) 使用文本编辑器        [e]"
+    echo "   10) 运行配置向导          [w]"
+    echo ""
+    echo "   11) 测试配置             [s]"
+    echo "   12) 保存并退出           [q]"
+    echo ""
+    echo -n "请选择操作 [1-12] 或快捷键: "
+}
+
 # 显示配置编辑菜单
 show_config_edit_menu() {
     while true; do
@@ -1031,52 +1282,11 @@ show_config_edit_menu() {
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
 
-        # 加载并显示当前配置
-        if load_config 2>/dev/null; then
-            echo "[配置] 当前配置摘要:"
-            echo "=================================================================="
-            echo "  GitHub用户: ${GITHUB_USERNAME:-未设置}"
-            echo "  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
-            echo "  日志级别: ${LOG_LEVEL:-未设置}"
+        # 显示配置摘要
+        show_config_summary
 
-            # 统计同步路径数量
-            if [ -n "$SYNC_PATHS" ]; then
-                local path_count=$(echo "$SYNC_PATHS" | grep -c "|" 2>/dev/null || echo "0")
-                echo "  同步路径: $path_count 个"
-            else
-                echo "  同步路径: 未配置"
-            fi
-
-            echo "  自动提交: ${AUTO_COMMIT:-未设置}"
-            echo "=================================================================="
-        else
-            echo "[警告] 无法加载配置文件或配置文件格式错误"
-            echo "=================================================================="
-        fi
-
-        echo ""
-        echo "[编辑] 配置编辑选项:"
-        echo ""
-        echo "  基本配置:"
-        echo "    1) 编辑GitHub凭据        [g]"
-        echo "    2) 编辑同步路径          [p]"
-        echo "    3) 编辑监控设置          [m]"
-        echo ""
-        echo "  高级配置:"
-        echo "    4) 编辑文件过滤规则      [f]"
-        echo "    5) 编辑提交设置          [t]"
-        echo "    6) 编辑网络设置          [n]"
-        echo ""
-        echo "  配置管理:"
-        echo "    7) 查看完整配置文件      [v]"
-        echo "    8) 重置为默认配置        [r]"
-        echo "    9) 使用文本编辑器        [e]"
-        echo "   10) 运行配置向导          [w]"
-        echo ""
-        echo "   11) 测试配置             [s]"
-        echo "   12) 保存并退出           [q]"
-        echo ""
-        echo -n "请选择操作 [1-12] 或快捷键: "
+        # 显示菜单选项
+        show_config_menu_options
 
         read -r edit_choice
 
@@ -1198,6 +1408,35 @@ edit_github_section() {
     read -r
 }
 
+# 通用的等待用户输入函数
+wait_for_user_input() {
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 通用的确认输入函数
+confirm_action() {
+    local prompt="$1"
+    local default="${2:-N}"
+
+    echo ""
+    echo -n "$prompt [$default]: "
+    read -r response
+
+    # 如果用户没有输入，使用默认值
+    response=${response:-$default}
+
+    case "$response" in
+        [Yy]|[Yy][Ee][Ss])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # 编辑同步路径部分
 edit_sync_paths_section() {
     echo ""
@@ -1259,9 +1498,7 @@ edit_sync_paths_section() {
             ;;
     esac
 
-    echo ""
-    echo "按任意键继续..."
-    read -r
+    wait_for_user_input
 }
 
 # 编辑监控设置部分
@@ -1336,9 +1573,7 @@ edit_monitoring_section() {
             ;;
     esac
 
-    echo ""
-    echo "按任意键继续..."
-    read -r
+    wait_for_user_input
 }
 
 # 更新配置文件中的值
@@ -1553,9 +1788,7 @@ edit_filter_section() {
             ;;
     esac
 
-    echo ""
-    echo "按任意键继续..."
-    read -r
+    wait_for_user_input
 }
 
 # 编辑提交设置
@@ -1701,15 +1934,10 @@ edit_network_section() {
             fi
             ;;
         5)
-            get_network_settings
+            echo -n "HTTP超时时间（秒，默认30）: "
+            read -r http_timeout
+            http_timeout=${http_timeout:-30}
             update_config_value "HTTP_TIMEOUT" "$http_timeout"
-            update_config_value "VERIFY_SSL" "$verify_ssl"
-            update_config_value "MAX_RETRIES" "$max_retries"
-            update_config_value "RETRY_INTERVAL" "$retry_interval"
-            if [ -n "$http_proxy" ]; then
-                update_config_value "HTTP_PROXY" "$http_proxy"
-                update_config_value "HTTPS_PROXY" "$https_proxy"
-            fi
             log_info "网络设置已更新"
             ;;
         *)
@@ -2397,40 +2625,22 @@ run_setup_wizard() {
     show_wizard_menu
 }
 
-# 显示向导菜单
+# 简化的向导菜单
 show_wizard_menu() {
-    echo "[配置] 配置向导模式选择："
+    echo "[配置] 选择配置方式："
     echo ""
-    echo "1) [快速] 快速配置（推荐新手）"
-    echo "   - 使用预设模板"
-    echo "   - 只需输入基本信息"
-    echo "   - 自动配置常用选项"
+    echo "1) [快速] 快速配置 - 使用预设模板，只需输入基本信息"
+    echo "2) [自定义] 自定义配置 - 手动配置所有选项"
     echo ""
-    echo "2) [标准] 标准配置（推荐）"
-    echo "   - 逐步配置所有选项"
-    echo "   - 提供详细说明和建议"
-    echo "   - 适合大多数用户"
-    echo ""
-    echo "3) [高级] 高级配置（专家用户）"
-    echo "   - 配置所有高级选项"
-    echo "   - 自定义过滤规则"
-    echo "   - 网络和性能优化"
-    echo ""
-    echo "4) [模板] 从模板创建"
-    echo "   - 选择预设配置模板"
-    echo "   - 快速适配常见场景"
-    echo ""
-    echo -n "请选择配置模式 [1-4]: "
+    echo -n "请选择 [1-2]: "
     read -r wizard_mode
 
     case "$wizard_mode" in
         1) run_quick_wizard ;;
         2) run_standard_wizard ;;
-        3) run_advanced_wizard ;;
-        4) run_template_wizard ;;
         *)
-            log_error "无效选择，使用标准配置模式"
-            run_standard_wizard
+            log_info "使用快速配置模式"
+            run_quick_wizard
             ;;
     esac
 }
@@ -2445,23 +2655,8 @@ run_quick_wizard() {
     # 获取GitHub基本信息
     get_github_credentials
 
-    # 选择预设模板
-    echo ""
-    echo "[配置] 选择配置模板："
-    echo "1) OpenWrt路由器配置同步"
-    echo "2) 开发环境配置同步"
-    echo "3) 服务器配置备份"
-    echo "4) 自定义配置"
-    echo ""
-    echo -n "请选择模板 [1-4]: "
-    read -r template_choice
-
-    case "$template_choice" in
-        1) apply_openwrt_template ;;
-        2) apply_dev_template ;;
-        3) apply_server_template ;;
-        *) get_basic_sync_paths ;;
-    esac
+    # 选择模板
+    select_template
 
     # 使用默认高级设置
     poll_interval=30
@@ -2562,153 +2757,9 @@ test_github_connection_with_token() {
     [ "$response" = "200" ]
 }
 
-# OpenWrt模板配置
-apply_openwrt_template() {
-    echo ""
-    echo "[OpenWrt] OpenWrt路由器配置模板"
-    echo "========================"
-    echo ""
-    echo "此模板将同步以下OpenWrt配置："
-    echo "• /etc/config/* - 系统配置文件"
-    echo "• /etc/firewall.user - 防火墙规则"
-    echo "• /etc/crontabs/root - 定时任务"
-    echo "• /etc/dropbear/ - SSH配置"
-    echo ""
 
-    # 询问仓库名称
-    echo -n "GitHub仓库名称 (默认: openwrt-config): "
-    read -r repo_name
-    repo_name=${repo_name:-openwrt-config}
 
-    sync_paths="/etc/config|$github_username/$repo_name|main|config
-/etc/firewall.user|$github_username/$repo_name|main|firewall.user
-/etc/crontabs/root|$github_username/$repo_name|main|crontab
-/etc/dropbear|$github_username/$repo_name|main|ssh"
 
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-* *.orig"
-    commit_template="[OpenWrt] Auto sync %s from $(hostname)"
-}
-
-# 开发环境模板配置
-apply_dev_template() {
-    echo ""
-    echo "[开发] 开发环境配置模板"
-    echo "==================="
-    echo ""
-    echo "此模板将同步以下开发配置："
-    echo "• ~/.bashrc, ~/.profile - Shell配置"
-    echo "• ~/.vimrc, ~/.tmux.conf - 编辑器配置"
-    echo "• ~/.gitconfig - Git配置"
-    echo "• ~/scripts/ - 自定义脚本"
-    echo ""
-
-    echo -n "GitHub仓库名称 (默认: dev-config): "
-    read -r repo_name
-    repo_name=${repo_name:-dev-config}
-
-    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|bashrc
-$HOME/.profile|$github_username/$repo_name|main|profile
-$HOME/.vimrc|$github_username/$repo_name|main|vimrc
-$HOME/.tmux.conf|$github_username/$repo_name|main|tmux.conf
-$HOME/.gitconfig|$github_username/$repo_name|main|gitconfig
-$HOME/scripts|$github_username/$repo_name|main|scripts"
-
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
-    commit_template="[Dev] Auto sync %s"
-}
-
-# 服务器配置模板
-apply_server_template() {
-    echo ""
-    echo "[服务器]  服务器配置模板"
-    echo "=================="
-    echo ""
-    echo "此模板将同步以下服务器配置："
-    echo "• /etc/nginx/ - Nginx配置"
-    echo "• /etc/systemd/system/ - 系统服务"
-    echo "• /root/scripts/ - 管理脚本"
-    echo "• /etc/crontab - 系统定时任务"
-    echo ""
-
-    echo -n "GitHub仓库名称 (默认: server-config): "
-    read -r repo_name
-    repo_name=${repo_name:-server-config}
-
-    sync_paths="/etc/nginx|$github_username/$repo_name|main|nginx
-/etc/systemd/system|$github_username/$repo_name|main|systemd
-/root/scripts|$github_username/$repo_name|main|scripts
-/etc/crontab|$github_username/$repo_name|main|crontab"
-
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ *.cache"
-    commit_template="[Server] Auto sync %s from $(hostname)"
-}
-
-# 获取基本同步路径
-get_basic_sync_paths() {
-    echo ""
-    echo "[路径] 自定义同步路径配置"
-    echo "===================="
-    echo ""
-    echo "格式说明: 本地路径|GitHub仓库|分支|目标路径"
-    echo "示例: /etc/config|$github_username/my-config|main|config"
-    echo ""
-
-    sync_paths=""
-    path_count=1
-
-    while true; do
-        echo "同步路径 $path_count:"
-        echo -n "本地路径 (留空结束): "
-        read -r local_path
-
-        if [ -z "$local_path" ]; then
-            break
-        fi
-
-        # 验证路径存在
-        if [ ! -e "$local_path" ]; then
-            echo "[警告]  路径不存在: $local_path"
-            echo -n "是否继续添加？[y/N]: "
-            read -r continue_add
-            if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
-                continue
-            fi
-        fi
-
-        echo -n "GitHub仓库 ($github_username/): "
-        read -r repo_name
-        if [ -z "$repo_name" ]; then
-            repo_name="config-backup"
-        fi
-
-        echo -n "分支 (默认main): "
-        read -r branch
-        branch=${branch:-main}
-
-        echo -n "目标路径 (可留空): "
-        read -r target_path
-
-        # 添加到同步路径
-        if [ -z "$sync_paths" ]; then
-            sync_paths="$local_path|$github_username/$repo_name|$branch|$target_path"
-        else
-            sync_paths="$sync_paths
-$local_path|$github_username/$repo_name|$branch|$target_path"
-        fi
-
-        path_count=$((path_count + 1))
-        echo "[成功] 已添加同步路径"
-        echo ""
-    done
-
-    if [ -z "$sync_paths" ]; then
-        echo "[警告]  未配置同步路径，使用默认配置"
-        sync_paths="/etc/config|$github_username/config-backup|main|config"
-    fi
-
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~"
-    commit_template="Auto sync %s"
-}
 
 # 标准配置向导
 run_standard_wizard() {
@@ -2910,209 +2961,31 @@ get_basic_advanced_options() {
     echo "[成功] 高级选项配置完成"
 }
 
-# 高级配置向导
-run_advanced_wizard() {
-    echo ""
-    echo "[高级] 高级配置向导"
-    echo "==============="
-    echo ""
 
-    # 获取GitHub凭据
-    get_github_credentials
 
-    # 获取详细同步路径
-    get_detailed_sync_paths
 
-    # 获取监控设置
-    get_monitoring_settings
 
-    # 获取完整高级选项
-    get_advanced_options
-
-    # 获取网络设置
-    get_network_settings
-
-    create_config_file
-    test_and_finish
-}
-
-# 获取高级选项
-get_advanced_options() {
+# 简化的模板选择
+select_template() {
     echo ""
-    echo "[高级] 高级选项配置"
-    echo "==============="
+    echo "[模板] 选择配置模板："
     echo ""
-
-    # 自动提交
-    echo -n "启用自动提交？[Y/n]: "
-    read -r auto_commit_choice
-    auto_commit=$([ "$auto_commit_choice" != "n" ] && [ "$auto_commit_choice" != "N" ] && echo "true" || echo "false")
-
-    # 提交消息模板
+    echo "1) OpenWrt路由器 - 基本配置文件同步"
+    echo "2) 开发环境 - Shell和编辑器配置"
+    echo "3) 自定义 - 手动指定同步路径"
     echo ""
-    echo "提交消息模板配置:"
-    echo "可用变量:"
-    echo "  %s - 文件相对路径"
-    echo "  \$(hostname) - 主机名"
-    echo "  \$(date) - 当前日期"
-    echo "  \$(whoami) - 当前用户"
-    echo ""
-    echo -n "提交消息模板 (默认: Auto sync %s from \$(hostname)): "
-    read -r commit_template
-    commit_template=${commit_template:-"Auto sync %s from \$(hostname)"}
-
-    # 文件大小限制
-    echo ""
-    echo "文件大小限制配置:"
-    echo "1) 512KB - 小文件"
-    echo "2) 1MB - 标准（推荐）"
-    echo "3) 5MB - 大文件"
-    echo "4) 10MB - 超大文件"
-    echo "5) 自定义"
-    echo ""
-    echo -n "请选择 [1-5，默认2]: "
-    read -r size_choice
-
-    case "$size_choice" in
-        1) max_file_size=524288 ;;      # 512KB
-        3) max_file_size=5242880 ;;     # 5MB
-        4) max_file_size=10485760 ;;    # 10MB
-        5)
-            echo -n "请输入文件大小限制（字节）: "
-            read -r max_file_size
-            max_file_size=${max_file_size:-1048576}
-            ;;
-        *) max_file_size=1048576 ;;     # 1MB
-    esac
-
-    # 高级文件过滤
-    echo ""
-    echo "高级文件过滤配置:"
-    echo "当前默认排除模式: *.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
-    echo ""
-    echo "1) 使用默认排除模式"
-    echo "2) 添加自定义排除模式"
-    echo "3) 完全自定义排除模式"
-    echo ""
-    echo -n "请选择 [1-3]: "
-    read -r filter_choice
-
-    case "$filter_choice" in
-        1)
-            exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
-            ;;
-        2)
-            echo -n "额外排除模式 (空格分隔): "
-            read -r extra_patterns
-            exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store $extra_patterns"
-            ;;
-        3)
-            echo -n "自定义排除模式 (空格分隔): "
-            read -r exclude_patterns
-            exclude_patterns=${exclude_patterns:-"*.tmp *.log *.pid *.lock .git"}
-            ;;
-    esac
-
-    # 重试设置
-    echo ""
-    echo "网络重试设置:"
-    echo -n "最大重试次数 (默认3): "
-    read -r max_retries
-    max_retries=${max_retries:-3}
-
-    echo -n "重试间隔（秒，默认5）: "
-    read -r retry_interval
-    retry_interval=${retry_interval:-5}
-
-    echo "[成功] 高级选项配置完成"
-}
-
-# 获取网络设置
-get_network_settings() {
-    echo ""
-    echo "[网络] 网络设置配置"
-    echo "==============="
-    echo ""
-
-    # HTTP超时
-    echo -n "HTTP请求超时时间（秒，默认30）: "
-    read -r http_timeout
-    http_timeout=${http_timeout:-30}
-
-    # SSL验证
-    echo ""
-    echo -n "启用SSL证书验证？[Y/n]: "
-    read -r ssl_verify
-    verify_ssl=$([ "$ssl_verify" != "n" ] && [ "$ssl_verify" != "N" ] && echo "true" || echo "false")
-
-    # 代理设置
-    echo ""
-    echo -n "是否配置HTTP代理？[y/N]: "
-    read -r use_proxy
-
-    if [ "$use_proxy" = "y" ] || [ "$use_proxy" = "Y" ]; then
-        echo -n "HTTP代理地址 (格式: http://proxy:port): "
-        read -r http_proxy
-        echo -n "HTTPS代理地址 (默认同HTTP代理): "
-        read -r https_proxy
-        https_proxy=${https_proxy:-$http_proxy}
-    else
-        http_proxy=""
-        https_proxy=""
-    fi
-
-    echo "[成功] 网络设置配置完成"
-}
-
-# 模板向导
-run_template_wizard() {
-    echo ""
-    echo "[文件] 模板配置向导"
-    echo "==============="
-    echo ""
-
-    echo "选择预设配置模板:"
-    echo ""
-    echo "1) [家庭] 家庭路由器配置"
-    echo "   - 基本OpenWrt配置同步"
-    echo "   - 网络设置、防火墙规则"
-    echo ""
-    echo "2) [企业] 企业路由器配置"
-    echo "   - 完整OpenWrt配置同步"
-    echo "   - 包含高级网络配置"
-    echo ""
-    echo "3) [开发] 开发工作站配置"
-    echo "   - 开发环境配置文件"
-    echo "   - 编辑器、Shell配置"
-    echo ""
-    echo "4) [服务器]  生产服务器配置"
-    echo "   - 服务器配置文件"
-    echo "   - 系统服务、定时任务"
-    echo ""
-    echo "5) [高级] 自定义最小配置"
-    echo "   - 仅基本同步功能"
-    echo "   - 手动指定路径"
-    echo ""
-    echo -n "请选择模板 [1-5]: "
+    echo -n "请选择模板 [1-3]: "
     read -r template_choice
 
-    # 获取GitHub凭据
-    get_github_credentials
-
     case "$template_choice" in
-        1) apply_home_router_template ;;
-        2) apply_enterprise_router_template ;;
-        3) apply_dev_workstation_template ;;
-        4) apply_production_server_template ;;
-        5) apply_minimal_template ;;
+        1) apply_openwrt_template ;;
+        2) apply_dev_template ;;
+        3) apply_custom_template ;;
         *)
-            log_error "无效选择，使用自定义最小配置"
-            apply_minimal_template
+            log_info "使用OpenWrt路由器模板"
+            apply_openwrt_template
             ;;
     esac
-
-    create_config_file
-    test_and_finish
 }
 
 # 创建配置文件
@@ -3372,16 +3245,15 @@ edit_github_credentials() {
     test_and_finish
 }
 
-# 家庭路由器模板
-apply_home_router_template() {
+# OpenWrt路由器模板
+apply_openwrt_template() {
     echo ""
-    echo "[家庭] 家庭路由器配置模板"
-    echo "===================="
+    echo "[OpenWrt] 路由器配置模板"
     echo ""
 
-    echo -n "GitHub仓库名称 (默认: home-router-config): "
+    echo -n "GitHub仓库名称 (默认: openwrt-config): "
     read -r repo_name
-    repo_name=${repo_name:-home-router-config}
+    repo_name=${repo_name:-openwrt-config}
 
     sync_paths="/etc/config|$github_username/$repo_name|main|config
 /etc/firewall.user|$github_username/$repo_name|main|firewall.user
@@ -3390,96 +3262,56 @@ apply_home_router_template() {
     poll_interval=60
     log_level="INFO"
     auto_commit=true
-    commit_template="[Home Router] Auto sync %s"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-*"
+    commit_template="Auto sync %s from OpenWrt"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git .uci-*"
     max_file_size=1048576
 }
 
-# 企业路由器模板
-apply_enterprise_router_template() {
+# 开发环境模板
+apply_dev_template() {
     echo ""
-    echo "[企业] 企业路由器配置模板"
-    echo "===================="
+    echo "[开发] 开发环境配置模板"
     echo ""
 
-    echo -n "GitHub仓库名称 (默认: enterprise-router-config): "
+    echo -n "GitHub仓库名称 (默认: dev-config): "
     read -r repo_name
-    repo_name=${repo_name:-enterprise-router-config}
+    repo_name=${repo_name:-dev-config}
 
-    sync_paths="/etc/config|$github_username/$repo_name|main|config
-/etc/firewall.user|$github_username/$repo_name|main|firewall.user
-/etc/crontabs/root|$github_username/$repo_name|main|crontab
-/etc/dropbear|$github_username/$repo_name|main|ssh
-/etc/uhttpd|$github_username/$repo_name|main|web
-/etc/dnsmasq.conf|$github_username/$repo_name|main|dnsmasq.conf"
+    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|bashrc
+$HOME/.vimrc|$github_username/$repo_name|main|vimrc
+$HOME/.gitconfig|$github_username/$repo_name|main|gitconfig"
 
     poll_interval=30
     log_level="INFO"
     auto_commit=true
-    commit_template="[Enterprise] Auto sync %s from \$(hostname)"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .uci-* *.orig"
-    max_file_size=2097152
-}
-
-# 开发工作站模板
-apply_dev_workstation_template() {
-    echo ""
-    echo "[开发] 开发工作站配置模板"
-    echo "===================="
-    echo ""
-
-    echo -n "GitHub仓库名称 (默认: dev-workstation-config): "
-    read -r repo_name
-    repo_name=${repo_name:-dev-workstation-config}
-
-    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|shell/bashrc
-$HOME/.profile|$github_username/$repo_name|main|shell/profile
-$HOME/.vimrc|$github_username/$repo_name|main|editor/vimrc
-$HOME/.tmux.conf|$github_username/$repo_name|main|terminal/tmux.conf
-$HOME/.gitconfig|$github_username/$repo_name|main|git/gitconfig
-$HOME/scripts|$github_username/$repo_name|main|scripts"
-
-    poll_interval=10
-    log_level="DEBUG"
-    auto_commit=true
-    commit_template="[Dev] Auto sync %s"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store *.pyc __pycache__"
-    max_file_size=5242880
-}
-
-# 生产服务器模板
-apply_production_server_template() {
-    echo ""
-    echo "[服务器]  生产服务器配置模板"
-    echo "====================="
-    echo ""
-
-    echo -n "GitHub仓库名称 (默认: production-server-config): "
-    read -r repo_name
-    repo_name=${repo_name:-production-server-config}
-
-    sync_paths="/etc/nginx|$github_username/$repo_name|main|nginx
-/etc/systemd/system|$github_username/$repo_name|main|systemd
-/root/scripts|$github_username/$repo_name|main|scripts
-/etc/crontab|$github_username/$repo_name|main|crontab
-/etc/logrotate.d|$github_username/$repo_name|main|logrotate"
-
-    poll_interval=300
-    log_level="WARN"
-    auto_commit=true
-    commit_template="[Production] Auto sync %s from \$(hostname) at \$(date)"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ *.cache *.backup"
+    commit_template="Auto sync %s"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~"
     max_file_size=1048576
 }
 
-# 最小配置模板
-apply_minimal_template() {
+# 自定义模板
+apply_custom_template() {
     echo ""
-    echo "[高级] 自定义最小配置模板"
-    echo "===================="
+    echo "[自定义] 自定义配置"
     echo ""
 
-    get_basic_sync_paths
+    # 简化的自定义路径配置
+    echo -n "GitHub仓库名称 (默认: config-backup): "
+    read -r repo_name
+    repo_name=${repo_name:-config-backup}
+
+    echo -n "本地文件/目录路径: "
+    read -r local_path
+
+    if [ -z "$local_path" ]; then
+        local_path="/etc/config"
+        echo "使用默认路径: $local_path"
+    fi
+
+    echo -n "目标路径 (可留空): "
+    read -r target_path
+
+    sync_paths="$local_path|$github_username/$repo_name|main|$target_path"
 
     poll_interval=60
     log_level="INFO"
@@ -3526,6 +3358,9 @@ EOF
 #==============================================================================
 
 main() {
+    # 初始化系统工具缓存
+    init_system_tools
+
     # 解析命令行参数（选项）
     parse_arguments "$@"
 

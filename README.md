@@ -1,15 +1,21 @@
-# GitHub文件同步工具
+# GitHub 文件同步工具
 
-专为OpenWrt/Kwrt系统设计的GitHub文件同步工具，支持自动监控本地文件变化并同步到GitHub仓库。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Shell Script](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
+[![OpenWrt Compatible](https://img.shields.io/badge/OpenWrt-Compatible-blue.svg)](https://openwrt.org/)
 
-## ✨ 功能特性
+专为OpenWrt/Kwrt系统设计的轻量级GitHub文件同步工具，支持自动监控本地文件变化并同步到GitHub仓库。
 
-- 🔄 **自动同步**: 实时监控文件变化，自动同步到GitHub
-- 📁 **多路径支持**: 支持同时监控多个文件或目录
-- 🏠 **多实例支持**: 支持为不同项目创建独立实例
-- 🎛️ **交互式配置**: 友好的配置向导和菜单界面
-- 📊 **智能日志**: 自动日志轮转和清理
-- 🛡️ **后台运行**: 守护进程模式，稳定可靠
+## ✨ 核心特性
+
+- � **一键安装** - 支持curl一行命令安装，自动配置系统服务
+- 🔄 **实时同步** - 自动监控文件变化，智能同步到GitHub
+- 📁 **多路径支持** - 支持同时监控多个文件或目录
+- 🏠 **多实例支持** - 支持为不同项目创建独立实例
+- 🎛️ **交互式配置** - 友好的配置向导和菜单界面
+- 📊 **智能日志** - 自动日志轮转和清理，性能优化
+- 🛡️ **高兼容性** - 支持OpenWrt、Linux等多种系统
+- 🔒 **安全可靠** - GitHub API集成，支持个人访问令牌
 
 ## 🚀 快速开始
 
@@ -211,30 +217,7 @@ MIT License
 
 欢迎提交Issue和Pull Request！
 
----
-
-**提示**: 首次使用建议先用测试仓库进行配置和测试，确认工作正常后再用于重要文件的同步。
-
-## 🚀 一键安装
-
-```bash
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
-```
-
-> 🎯 **零配置安装**: 自动检测系统、安装依赖、配置服务，一条命令完成所有设置！
-
-## 特性
-
-- 🚀 **单脚本设计**: 所有功能集成在一个Shell脚本中，易于部署和维护
-- 🔄 **自动同步**: 监控本地文件变化，自动同步到GitHub仓库
-- 🎯 **多路径支持**: 支持同时监控多个目录，同步到不同的GitHub仓库
-- 🛡️ **OpenWrt优化**: 专为OpenWrt/Kwrt系统优化，支持procd服务管理
-- 📊 **轮询监控**: 使用轮询方式监控文件变化，无需inotify-tools
-- 🔧 **灵活配置**: 支持文件过滤、自定义提交消息等高级配置
-- 📝 **完善日志**: 详细的日志记录和错误处理机制
-- 🔒 **安全可靠**: 支持GitHub API认证，安全传输文件
-
-## 系统要求
+## � 系统要求
 
 - OpenWrt/Kwrt系统（推荐）或其他Linux系统
 - curl工具（用于GitHub API调用）
@@ -243,29 +226,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system
 
 > 💡 **提示**: 一键安装脚本会自动检测系统并安装所需依赖，无需手动准备。
 
-## 🚀 一键安装
-
-```bash
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/system-check.sh)
-```
-
-就这么简单！脚本会自动：
-- 检测系统类型（OpenWrt/Debian/Ubuntu等）
-- 安装必要依赖（curl、base64等）
-- 下载并配置同步工具
-- 设置系统服务（OpenWrt使用procd）
-- 启动交互式配置向导
-
-安装完成后，运行 `github-sync` 进入交互式菜单，或者：
-
-```bash
-github-sync config   # 编辑配置文件
-github-sync test     # 测试配置
-github-sync start    # 启动服务
-github-sync status   # 查看状态
-```
-
-## 详细配置
+## ⚙️ 详细配置
 
 ### GitHub令牌设置
 
@@ -294,25 +255,7 @@ SYNC_PATHS="
 EXCLUDE_PATTERNS="*.tmp *.log *.pid *.lock .git *.swp"
 ```
 
-## 命令参考
 
-```bash
-# 基本命令
-./github-sync.sh start          # 启动服务
-./github-sync.sh stop           # 停止服务
-./github-sync.sh restart        # 重启服务
-./github-sync.sh status         # 查看状态
-
-# 配置和测试
-./github-sync.sh config         # 编辑配置
-./github-sync.sh test           # 测试配置
-./github-sync.sh sync           # 执行一次性同步
-
-# 维护命令
-./github-sync.sh logs           # 查看日志
-./github-sync.sh install        # 安装工具
-./github-sync.sh help           # 显示帮助
-```
 
 ## 服务管理
 
