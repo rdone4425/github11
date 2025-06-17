@@ -33,6 +33,55 @@ readonly DATA_DIR="${PROJECT_DIR}/data"
 readonly TEMP_DIR="${PROJECT_DIR}/tmp"
 readonly BACKUP_DIR="${PROJECT_DIR}/backup"
 
+#==============================================================================
+# 核心工具函数 - 需要在早期定义
+#==============================================================================
+
+# 创建临时文件
+# 功能: 创建安全的临时文件
+# 参数: $1 - 文件前缀
+# 返回: 临时文件路径
+create_temp_file() {
+    local prefix="${1:-temp}"
+    local temp_file="${TEMP_DIR}/${prefix}_$$_$(date +%s)"
+
+    # 确保临时目录存在
+    if [ ! -d "$TEMP_DIR" ]; then
+        mkdir -p "$TEMP_DIR" 2>/dev/null || {
+            echo "错误: 无法创建临时目录 $TEMP_DIR" >&2
+            return 1
+        }
+    fi
+
+    touch "$temp_file" 2>/dev/null || {
+        echo "错误: 无法创建临时文件" >&2
+        return 1
+    }
+    echo "$temp_file"
+}
+
+# 清理临时文件
+# 功能: 清理指定的临时文件或所有临时文件
+# 参数: $1 - 临时文件路径（可选，为空则清理所有）
+cleanup_temp_files() {
+    local temp_file="$1"
+
+    if [ -n "$temp_file" ]; then
+        # 清理指定文件
+        rm -f "$temp_file" 2>/dev/null || true
+    else
+        # 清理所有临时文件
+        if [ -d "$TEMP_DIR" ]; then
+            find "$TEMP_DIR" -name "temp_*" -type f -mtime +1 -delete 2>/dev/null || true
+            find "$TEMP_DIR" -name "*_$$_*" -type f -delete 2>/dev/null || true
+        fi
+    fi
+}
+
+#==============================================================================
+# 文件发现和迁移功能
+#==============================================================================
+
 # 全面的文件发现和分析
 discover_github_sync_files() {
     local discovery_report=$(create_temp_file "discovery_report")
@@ -578,36 +627,6 @@ check_code_health() {
 #==============================================================================
 # 核心工具函数
 #==============================================================================
-
-# 创建临时文件
-# 功能: 创建安全的临时文件
-# 参数: $1 - 文件前缀
-# 返回: 临时文件路径
-create_temp_file() {
-    local prefix="${1:-temp}"
-    local temp_file="${TEMP_DIR}/${prefix}_$$_$(date +%s)"
-    touch "$temp_file" 2>/dev/null || {
-        echo "错误: 无法创建临时文件" >&2
-        return 1
-    }
-    echo "$temp_file"
-}
-
-# 清理临时文件
-# 功能: 清理指定的临时文件或所有临时文件
-# 参数: $1 - 临时文件路径（可选，为空则清理所有）
-cleanup_temp_files() {
-    local temp_file="$1"
-
-    if [ -n "$temp_file" ]; then
-        # 清理指定文件
-        rm -f "$temp_file" 2>/dev/null || true
-    else
-        # 清理所有临时文件
-        find "$TEMP_DIR" -name "temp_*" -type f -mtime +1 -delete 2>/dev/null || true
-        find "$TEMP_DIR" -name "*_$$_*" -type f -delete 2>/dev/null || true
-    fi
-}
 
 # 初始化系统工具检查
 # 功能: 检测并缓存系统工具的可用性和格式，避免重复检查
