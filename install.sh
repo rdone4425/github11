@@ -23,22 +23,57 @@ install_tool() {
         exit 1
     fi
 
+    # 检查下载的文件
+    if [ ! -f "github-sync.sh" ]; then
+        echo "错误: 主程序文件下载失败"
+        exit 1
+    fi
+
+    # 检查文件大小
+    file_size=$(wc -c < github-sync.sh 2>/dev/null || echo 0)
+    if [ "$file_size" -lt 1000 ]; then
+        echo "错误: 下载的文件太小，可能下载不完整"
+        echo "文件大小: $file_size bytes"
+        exit 1
+    fi
+
+    # 检查文件是否是shell脚本
+    if ! head -1 github-sync.sh | grep -q "#!/"; then
+        echo "错误: 下载的文件不是有效的shell脚本"
+        exit 1
+    fi
+
     echo "3. 设置权限..."
     chmod +x github-sync.sh
+
+    # 验证权限设置
+    if [ ! -x "github-sync.sh" ]; then
+        echo "错误: 无法设置执行权限"
+        exit 1
+    fi
 
     echo "4. 下载配置示例..."
     curl -fsSL "$BASE_URL/github-sync.conf.example" -o github-sync.conf.example 2>/dev/null || echo "配置示例下载失败，跳过"
 
     echo ""
-    echo "✅ 安装完成！"
+    echo "[成功] 安装完成！"
     echo ""
     echo "安装目录: $INSTALL_DIR"
+    echo "文件大小: $file_size bytes"
     echo ""
     echo "正在启动程序..."
     sleep 2
 
     # 启动主程序
-    ./github-sync.sh
+    echo "执行: ./github-sync.sh"
+    if ! ./github-sync.sh; then
+        echo ""
+        echo "程序启动失败，请手动检查："
+        echo "  cd $INSTALL_DIR"
+        echo "  ls -la github-sync.sh"
+        echo "  head -5 github-sync.sh"
+        echo "  ./github-sync.sh"
+    fi
 }
 
 # 执行安装
