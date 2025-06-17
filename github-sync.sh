@@ -21,15 +21,121 @@ SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 # 项目目录 - 在/root下创建专用目录
 readonly PROJECT_DIR="/root/github-sync"
 
-# 确保项目目录存在
-ensure_project_directory() {
-    if [ ! -d "$PROJECT_DIR" ]; then
-        if ! mkdir -p "$PROJECT_DIR" 2>/dev/null; then
-            echo "错误: 无法创建项目目录 $PROJECT_DIR" >&2
-            exit 1
+# 子目录结构
+readonly CONFIG_DIR="${PROJECT_DIR}/config"
+readonly LOG_DIR="${PROJECT_DIR}/logs"
+readonly DATA_DIR="${PROJECT_DIR}/data"
+readonly TEMP_DIR="${PROJECT_DIR}/tmp"
+readonly BACKUP_DIR="${PROJECT_DIR}/backup"
+
+# 迁移现有文件到新目录结构
+migrate_existing_files() {
+    local migrated_count=0
+
+    echo "检查是否需要迁移现有文件..."
+
+    # 迁移配置文件
+    for old_config in "${PROJECT_DIR}"/github-sync-*.conf; do
+        if [ -f "$old_config" ] && [ "$(dirname "$old_config")" = "$PROJECT_DIR" ]; then
+            local filename=$(basename "$old_config")
+            local new_config="${CONFIG_DIR}/$filename"
+            if [ ! -f "$new_config" ]; then
+                mv "$old_config" "$new_config" 2>/dev/null && {
+                    echo "已迁移配置文件: $filename"
+                    migrated_count=$((migrated_count + 1))
+                }
+            fi
         fi
-        echo "已创建项目目录: $PROJECT_DIR"
+    done
+
+    # 迁移日志文件
+    for old_log in "${PROJECT_DIR}"/github-sync-*.log*; do
+        if [ -f "$old_log" ] && [ "$(dirname "$old_log")" = "$PROJECT_DIR" ]; then
+            local filename=$(basename "$old_log")
+            local new_log="${LOG_DIR}/$filename"
+            if [ ! -f "$new_log" ]; then
+                mv "$old_log" "$new_log" 2>/dev/null && {
+                    echo "已迁移日志文件: $filename"
+                    migrated_count=$((migrated_count + 1))
+                }
+            fi
+        fi
+    done
+
+    # 迁移PID和锁文件
+    for old_file in "${PROJECT_DIR}"/github-sync-*.pid "${PROJECT_DIR}"/github-sync-*.lock; do
+        if [ -f "$old_file" ] && [ "$(dirname "$old_file")" = "$PROJECT_DIR" ]; then
+            local filename=$(basename "$old_file")
+            local new_file="${DATA_DIR}/$filename"
+            if [ ! -f "$new_file" ]; then
+                mv "$old_file" "$new_file" 2>/dev/null && {
+                    echo "已迁移数据文件: $filename"
+                    migrated_count=$((migrated_count + 1))
+                }
+            fi
+        fi
+    done
+
+    # 迁移状态文件
+    for old_state in "${PROJECT_DIR}"/.state_* "${PROJECT_DIR}"/.last_log_cleanup_*; do
+        if [ -f "$old_state" ] && [ "$(dirname "$old_state")" = "$PROJECT_DIR" ]; then
+            local filename=$(basename "$old_state")
+            # 移除开头的点
+            local new_filename="${filename#.}"
+            local new_state="${DATA_DIR}/$new_filename"
+            if [ ! -f "$new_state" ]; then
+                mv "$old_state" "$new_state" 2>/dev/null && {
+                    echo "已迁移状态文件: $new_filename"
+                    migrated_count=$((migrated_count + 1))
+                }
+            fi
+        fi
+    done
+
+    # 迁移备份文件
+    for old_backup in "${PROJECT_DIR}"/github-sync-*.conf.backup.*; do
+        if [ -f "$old_backup" ] && [ "$(dirname "$old_backup")" = "$PROJECT_DIR" ]; then
+            local filename=$(basename "$old_backup")
+            local new_backup="${BACKUP_DIR}/$filename"
+            if [ ! -f "$new_backup" ]; then
+                mv "$old_backup" "$new_backup" 2>/dev/null && {
+                    echo "已迁移备份文件: $filename"
+                    migrated_count=$((migrated_count + 1))
+                }
+            fi
+        fi
+    done
+
+    if [ "$migrated_count" -gt 0 ]; then
+        echo "文件迁移完成，共迁移 $migrated_count 个文件"
+    else
+        echo "无需迁移文件"
     fi
+}
+
+# 确保项目目录结构存在
+ensure_project_directory() {
+    local dirs_to_create="$PROJECT_DIR $CONFIG_DIR $LOG_DIR $DATA_DIR $TEMP_DIR $BACKUP_DIR"
+
+    for dir in $dirs_to_create; do
+        if [ ! -d "$dir" ]; then
+            if ! mkdir -p "$dir" 2>/dev/null; then
+                echo "错误: 无法创建目录 $dir" >&2
+                exit 1
+            fi
+            echo "已创建目录: $dir"
+        fi
+    done
+
+    # 设置适当的权限
+    chmod 700 "$PROJECT_DIR" 2>/dev/null || true
+    chmod 755 "$CONFIG_DIR" "$LOG_DIR" "$DATA_DIR" 2>/dev/null || true
+    chmod 700 "$TEMP_DIR" "$BACKUP_DIR" 2>/dev/null || true
+
+    # 迁移现有文件
+    migrate_existing_files
+
+    echo "项目目录结构初始化完成: $PROJECT_DIR"
 }
 
 # 初始化项目目录
@@ -37,10 +143,12 @@ ensure_project_directory
 
 # 支持多实例 - 可通过环境变量或参数指定实例名
 INSTANCE_NAME="${GITHUB_SYNC_INSTANCE:-default}"
-CONFIG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.conf"
-LOG_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.log"
-PID_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.pid"
-LOCK_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.lock"
+
+# 文件路径配置 - 使用结构化目录
+CONFIG_FILE="${CONFIG_DIR}/github-sync-${INSTANCE_NAME}.conf"
+LOG_FILE="${LOG_DIR}/github-sync-${INSTANCE_NAME}.log"
+PID_FILE="${DATA_DIR}/github-sync-${INSTANCE_NAME}.pid"
+LOCK_FILE="${DATA_DIR}/github-sync-${INSTANCE_NAME}.lock"
 
 #==============================================================================
 # 默认配置常量
@@ -48,10 +156,15 @@ LOCK_FILE="${PROJECT_DIR}/github-sync-${INSTANCE_NAME}.lock"
 
 readonly DEFAULT_POLL_INTERVAL=30
 readonly DEFAULT_LOG_LEVEL="INFO"
-readonly DEFAULT_MAX_LOG_SIZE=1048576  # 1MB
+# 文件大小常量
+readonly ONE_MB=1048576                # 1MB in bytes
+readonly ONE_DAY_SECONDS=86400         # 24 * 60 * 60
+
+# 默认配置值
+readonly DEFAULT_MAX_LOG_SIZE=$ONE_MB  # 1MB
 readonly DEFAULT_LOG_KEEP_DAYS=7       # 保留7天的日志
 readonly DEFAULT_LOG_MAX_FILES=10      # 最多保留10个日志文件
-readonly DEFAULT_MAX_FILE_SIZE=1048576 # 1MB
+readonly DEFAULT_MAX_FILE_SIZE=$ONE_MB # 1MB
 readonly DEFAULT_HTTP_TIMEOUT=30
 readonly DEFAULT_MAX_RETRIES=3
 readonly DEFAULT_RETRY_INTERVAL=5
@@ -75,8 +188,83 @@ MENU_CACHE_TIME=0
 MENU_CACHE_DURATION=5  # 缓存5秒
 
 #==============================================================================
+# 代码质量和健康检查
+#==============================================================================
+
+# 代码质量检查
+check_code_health() {
+    local issues=0
+
+    echo "代码健康检查报告:"
+    echo "=================="
+
+    # 检查函数数量
+    local func_count=$(grep -c '^[a-zA-Z_][a-zA-Z0-9_]*()' "$0")
+    echo "• 函数数量: $func_count"
+    if [ "$func_count" -gt 100 ]; then
+        echo "  ⚠️  函数数量过多，建议模块化"
+        issues=$((issues + 1))
+    fi
+
+    # 检查文件大小
+    local file_size=$(wc -l < "$0")
+    echo "• 文件行数: $file_size"
+    if [ "$file_size" -gt 3000 ]; then
+        echo "  ⚠️  文件过大，建议拆分"
+        issues=$((issues + 1))
+    fi
+
+    # 检查TODO项目
+    local todo_count=$(grep -c "TODO\|FIXME\|XXX\|HACK" "$0" 2>/dev/null || echo "0")
+    echo "• 待办事项: $todo_count"
+
+    # 检查错误处理
+    local error_handling=$(grep -c "trap\|return 1\|exit 1" "$0" 2>/dev/null || echo "0")
+    echo "• 错误处理点: $error_handling"
+
+    echo ""
+    if [ "$issues" -eq 0 ]; then
+        echo "✅ 代码健康状况良好"
+    else
+        echo "⚠️  发现 $issues 个需要关注的问题"
+    fi
+
+    return $issues
+}
+
+#==============================================================================
 # 核心工具函数
 #==============================================================================
+
+# 创建临时文件
+# 功能: 创建安全的临时文件
+# 参数: $1 - 文件前缀
+# 返回: 临时文件路径
+create_temp_file() {
+    local prefix="${1:-temp}"
+    local temp_file="${TEMP_DIR}/${prefix}_$$_$(date +%s)"
+    touch "$temp_file" 2>/dev/null || {
+        echo "错误: 无法创建临时文件" >&2
+        return 1
+    }
+    echo "$temp_file"
+}
+
+# 清理临时文件
+# 功能: 清理指定的临时文件或所有临时文件
+# 参数: $1 - 临时文件路径（可选，为空则清理所有）
+cleanup_temp_files() {
+    local temp_file="$1"
+
+    if [ -n "$temp_file" ]; then
+        # 清理指定文件
+        rm -f "$temp_file" 2>/dev/null || true
+    else
+        # 清理所有临时文件
+        find "$TEMP_DIR" -name "temp_*" -type f -mtime +1 -delete 2>/dev/null || true
+        find "$TEMP_DIR" -name "*_$$_*" -type f -delete 2>/dev/null || true
+    fi
+}
 
 # 初始化系统工具检查
 # 功能: 检测并缓存系统工具的可用性和格式，避免重复检查
@@ -404,7 +592,7 @@ get_file_age_days() {
     local file_mtime=$(get_file_mtime "$file")
     local current_time=$(date +%s)
     local age_seconds=$((current_time - file_mtime))
-    local age_days=$((age_seconds / 86400))
+    local age_days=$((age_seconds / ONE_DAY_SECONDS))
 
     echo $age_days
 }
@@ -418,12 +606,12 @@ cleanup_old_logs() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local deleted_count=0
     local total_size_freed=0
-    local temp_stats="${PROJECT_DIR}/.cleanup_stats_$$"
+    local temp_stats="${TEMP_DIR}/cleanup_stats_$$"
 
     # 清理基于时间的旧日志 - 避免管道子shell问题
-    find "$log_dir" -name "${log_basename}.*" -type f > "${temp_stats}.files" 2>/dev/null || true
+    find "$log_dir" -name "${log_basename}.*" -type f > "${temp_stats}_files" 2>/dev/null || true
 
-    if [ -f "${temp_stats}.files" ]; then
+    if [ -f "${temp_stats}_files" ]; then
         while read -r old_log; do
             [ -z "$old_log" ] && continue
             local age_days=$(get_file_age_days "$old_log")
@@ -435,8 +623,8 @@ cleanup_old_logs() {
                     echo "[$timestamp] [INFO] 已删除过期日志文件: $old_log (年龄: ${age_days}天, 大小: ${file_size}字节)" >> "$LOG_FILE"
                 fi
             fi
-        done < "${temp_stats}.files"
-        rm -f "${temp_stats}.files"
+        done < "${temp_stats}_files"
+        rm -f "${temp_stats}_files"
     fi
 
     # 限制日志文件数量
@@ -444,9 +632,9 @@ cleanup_old_logs() {
     if [ "$log_count" -gt "$max_files" ]; then
         # 删除最旧的日志文件 - 避免管道子shell问题
         find "$log_dir" -name "${log_basename}.*" -type f -exec ls -t {} + 2>/dev/null | \
-        tail -n +$((max_files + 1)) > "${temp_stats}.excess" 2>/dev/null || true
+        tail -n +$((max_files + 1)) > "${temp_stats}_excess" 2>/dev/null || true
 
-        if [ -f "${temp_stats}.excess" ]; then
+        if [ -f "${temp_stats}_excess" ]; then
             while read -r old_log; do
                 [ -z "$old_log" ] && continue
                 local file_size=$(get_file_size "$old_log")
@@ -455,8 +643,8 @@ cleanup_old_logs() {
                     total_size_freed=$((total_size_freed + file_size))
                     echo "[$timestamp] [INFO] 已删除多余日志文件: $old_log (大小: ${file_size}字节)" >> "$LOG_FILE"
                 fi
-            done < "${temp_stats}.excess"
-            rm -f "${temp_stats}.excess"
+            done < "${temp_stats}_excess"
+            rm -f "${temp_stats}_excess"
         fi
     fi
 
@@ -469,7 +657,7 @@ cleanup_old_logs() {
     fi
 
     # 清理临时文件
-    rm -f "${temp_stats}".* 2>/dev/null || true
+    rm -f "${temp_stats}"_* 2>/dev/null || true
 }
 
 # 日志文件轮转和清理
@@ -500,7 +688,7 @@ rotate_log() {
 
 # 定期清理日志（每天执行一次）
 periodic_log_cleanup() {
-    local cleanup_marker="${PROJECT_DIR}/.last_log_cleanup_$(echo "$INSTANCE_NAME" | tr '/' '_')"
+    local cleanup_marker="${DATA_DIR}/last_log_cleanup_$(echo "$INSTANCE_NAME" | tr '/' '_')"
     local today=$(date '+%Y%m%d')
     local current_hour=$(date '+%H')
 
@@ -1003,7 +1191,7 @@ should_exclude_file() {
 # 扫描目录中的文件变化
 scan_directory_changes() {
     local watch_path="$1"
-    local state_file="${PROJECT_DIR}/.state_$(echo "$watch_path" | tr '/' '_')"
+    local state_file="${DATA_DIR}/state_$(echo "$watch_path" | tr '/' '_')"
 
     # 创建状态文件（如果不存在）
     [ ! -f "$state_file" ] && touch "$state_file"
@@ -1710,7 +1898,14 @@ GitHub File Sync Tool for OpenWrt/Kwrt Systems
     • 自动清理: 每天凌晨2-6点清理过期日志
     • 保留策略: 默认保留7天，最多10个文件
 
-项目目录: $PROJECT_DIR
+项目目录结构:
+  $PROJECT_DIR/
+  ├── config/          # 配置文件目录
+  ├── logs/            # 日志文件目录
+  ├── data/            # 数据文件目录 (PID, 锁文件, 状态文件)
+  ├── tmp/             # 临时文件目录
+  └── backup/          # 备份文件目录
+
 当前实例: $INSTANCE_NAME
 配置文件: $CONFIG_FILE
 日志文件: $LOG_FILE
@@ -2950,7 +3145,7 @@ reset_to_default_config() {
     if [ "$confirm_reset" = "y" ] || [ "$confirm_reset" = "Y" ]; then
         # 备份当前配置
         if [ -f "$CONFIG_FILE" ]; then
-            local backup_file="${CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+            local backup_file="${BACKUP_DIR}/github-sync-${INSTANCE_NAME}.conf.backup.$(date +%Y%m%d_%H%M%S)"
             cp "$CONFIG_FILE" "$backup_file"
             log_info "当前配置已备份到: $backup_file"
         fi
@@ -3571,7 +3766,7 @@ run_setup_wizard() {
                 return $?
                 ;;
             3)
-                backup_file="$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+                backup_file="${BACKUP_DIR}/github-sync-${INSTANCE_NAME}.conf.backup.$(date +%Y%m%d_%H%M%S)"
                 cp "$CONFIG_FILE" "$backup_file"
                 log_info "配置文件已备份到: $backup_file"
                 ;;
