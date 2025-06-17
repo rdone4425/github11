@@ -15,6 +15,8 @@ NC='\033[0m' # No Color
 # 项目信息
 REPO_URL="https://github.com/rdone4425/github11"
 RAW_URL="https://raw.githubusercontent.com/rdone4425/github11/main"
+# GitHub加速域名（国内用户）
+MIRROR_PREFIX="https://git.910626.xyz/"
 INSTALL_DIR="/root/github-sync"
 SCRIPT_NAME="github-sync.sh"
 
@@ -33,6 +35,64 @@ log_error() {
 
 log_debug() {
     echo -e "${BLUE}[DEBUG]${NC} $1"
+}
+
+# 检测最佳下载源
+detect_best_source() {
+    log_info "检测最佳下载源..."
+
+    # 测试GitHub原站连接速度
+    local github_speed=999
+    if curl -s --connect-timeout 3 --max-time 5 "https://raw.githubusercontent.com" >/dev/null 2>&1; then
+        local start_time=$(date +%s%N)
+        if curl -s --connect-timeout 5 --max-time 10 "https://raw.githubusercontent.com/rdone4425/github11/main/README.md" >/dev/null 2>&1; then
+            local end_time=$(date +%s%N)
+            github_speed=$(( (end_time - start_time) / 1000000 ))
+        fi
+    fi
+
+    # 测试加速镜像连接速度
+    local mirror_speed=999
+    if curl -s --connect-timeout 3 --max-time 5 "https://git.910626.xyz" >/dev/null 2>&1; then
+        local start_time=$(date +%s%N)
+        if curl -s --connect-timeout 5 --max-time 10 "https://git.910626.xyz/rdone4425/github11/raw/branch/main/README.md" >/dev/null 2>&1; then
+            local end_time=$(date +%s%N)
+            mirror_speed=$(( (end_time - start_time) / 1000000 ))
+        fi
+    fi
+
+    # 选择最快的源
+    if [ "$mirror_speed" -lt "$github_speed" ]; then
+        log_info "使用加速镜像源 (响应时间: ${mirror_speed}ms)"
+        echo "$MIRROR_URL"
+    else
+        log_info "使用GitHub原站 (响应时间: ${github_speed}ms)"
+        echo "$RAW_URL"
+    fi
+}
+
+# 检测最佳下载源
+detect_best_source() {
+    log_info "检测网络环境，选择最佳下载源..."
+
+    # 测试GitHub原站连接
+    if curl -s --connect-timeout 5 --max-time 8 "${RAW_URL}/README.md" >/dev/null 2>&1; then
+        log_info "GitHub原站连接正常，使用原站下载"
+        echo "$RAW_URL"
+        return 0
+    fi
+
+    # GitHub原站连接失败，尝试加速镜像
+    log_warn "GitHub原站连接较慢，尝试使用加速镜像..."
+    if curl -s --connect-timeout 5 --max-time 8 "${MIRROR_PREFIX}${RAW_URL}/README.md" >/dev/null 2>&1; then
+        log_info "加速镜像连接成功，使用镜像下载"
+        echo "${MIRROR_PREFIX}${RAW_URL}"
+        return 0
+    fi
+
+    # 两个源都有问题，使用原站并提示用户
+    log_warn "网络连接不稳定，将使用GitHub原站，可能下载较慢"
+    echo "$RAW_URL"
 }
 
 # 检测系统类型
@@ -86,19 +146,40 @@ install_dependencies() {
 
 # 下载文件
 download_file() {
-    local url="$1"
+    local filename="$1"
     local output="$2"
-    
-    log_info "下载: $url"
-    
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$output"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "$url" -O "$output"
-    else
-        log_error "未找到curl或wget，无法下载文件"
-        exit 1
-    fi
+    local base_url="$3"
+
+    local full_url="${base_url}/${filename}"
+    log_info "下载: $filename"
+
+    # 尝试下载，如果失败则重试
+    local max_retries=3
+    local retry_count=0
+
+    while [ $retry_count -lt $max_retries ]; do
+        if command -v curl >/dev/null 2>&1; then
+            if curl -fsSL "$full_url" -o "$output" 2>/dev/null; then
+                return 0
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            if wget -q "$full_url" -O "$output" 2>/dev/null; then
+                return 0
+            fi
+        else
+            log_error "未找到curl或wget，无法下载文件"
+            exit 1
+        fi
+
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            log_warn "下载失败，正在重试 ($retry_count/$max_retries)..."
+            sleep 2
+        fi
+    done
+
+    log_error "下载失败: $filename"
+    return 1
 }
 
 # 主安装函数
@@ -125,17 +206,30 @@ main_install() {
     mkdir -p "$INSTALL_DIR"
     cd "$INSTALL_DIR"
     
+    # 检测最佳下载源
+    log_info "步骤 3/5: 检测最佳下载源..."
+    local best_source=$(detect_best_source)
+
     # 下载主程序
-    log_info "步骤 3/4: 下载GitHub同步工具..."
-    download_file "$RAW_URL/$SCRIPT_NAME" "$SCRIPT_NAME"
-    download_file "$RAW_URL/README.md" "README.md"
-    download_file "$RAW_URL/github-sync.conf.example" "github-sync.conf.example"
+    log_info "步骤 4/5: 下载GitHub同步工具..."
+    if ! download_file "$SCRIPT_NAME" "$SCRIPT_NAME" "$best_source"; then
+        log_error "下载主程序失败"
+        exit 1
+    fi
+
+    if ! download_file "README.md" "README.md" "$best_source"; then
+        log_warn "下载README.md失败，跳过"
+    fi
+
+    if ! download_file "github-sync.conf.example" "github-sync.conf.example" "$best_source"; then
+        log_warn "下载配置示例失败，跳过"
+    fi
     
     # 设置权限
     chmod +x "$SCRIPT_NAME"
-    
+
     # 创建符号链接（可选）
-    log_info "步骤 4/4: 配置系统..."
+    log_info "步骤 5/5: 配置系统..."
     if [ ! -f "/usr/local/bin/github-sync" ]; then
         ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "/usr/local/bin/github-sync" 2>/dev/null || true
     fi
