@@ -18,8 +18,13 @@ readonly GITHUB_SYNC_NAME="GitHub File Sync Tool"
 # 全局变量
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
-# 项目目录 - 在/root下创建专用目录
-readonly PROJECT_DIR="/root/github-sync"
+# 项目目录 - 根据环境自动选择
+if [ -w "/root" ] 2>/dev/null; then
+    readonly PROJECT_DIR="/root/github-sync"
+else
+    # 在当前目录下创建测试目录
+    readonly PROJECT_DIR="$(pwd)/github-sync-test"
+fi
 
 # 子目录结构
 readonly CONFIG_DIR="${PROJECT_DIR}/config"
@@ -35,14 +40,15 @@ discover_github_sync_files() {
     echo "🔍 正在扫描 GitHub Sync Tool 相关文件..."
     echo ""
 
-    # 扫描根目录下的相关文件
-    echo "扫描范围: /root/ 目录"
+    # 扫描当前目录下的相关文件
+    local scan_dir="$(dirname "$PROJECT_DIR")"
+    echo "扫描范围: $scan_dir 目录"
     echo "搜索模式: github-sync 相关文件"
     echo ""
 
     # 发现配置文件
     echo "📁 配置文件:" >> "$discovery_report"
-    find /root -maxdepth 1 -name "github-sync-*.conf" -type f 2>/dev/null | while read -r file; do
+    find "$scan_dir" -maxdepth 1 -name "github-sync-*.conf" -type f 2>/dev/null | while read -r file; do
         if [ -f "$file" ]; then
             local size=$(get_file_size "$file")
             local mtime=$(get_file_mtime "$file")
@@ -53,7 +59,7 @@ discover_github_sync_files() {
 
     # 发现日志文件
     echo "📝 日志文件:" >> "$discovery_report"
-    find /root -maxdepth 1 -name "github-sync-*.log*" -type f 2>/dev/null | while read -r file; do
+    find "$scan_dir" -maxdepth 1 -name "github-sync-*.log*" -type f 2>/dev/null | while read -r file; do
         if [ -f "$file" ]; then
             local size=$(get_file_size "$file")
             local mtime=$(get_file_mtime "$file")
@@ -3816,35 +3822,88 @@ test_config() {
 # 交互式菜单界面
 #==============================================================================
 
-# 现代化菜单界面设计
+# 简化的菜单界面设计
 show_interactive_menu() {
     while true; do
-        show_main_dashboard
-        handle_menu_input
+        show_simple_menu
+        handle_simple_input
     done
 }
 
-# 显示主仪表板
-show_main_dashboard() {
+# 显示简化菜单
+show_simple_menu() {
     clear
 
-    # 顶部标题栏
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                          🚀 GitHub File Sync Tool                           ║"
-    echo "║                             GitHub文件同步工具                              ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    # 简洁标题
+    echo "=================================="
+    echo "🚀 GitHub File Sync Tool"
+    echo "=================================="
     echo ""
 
-    # 系统状态面板
-    show_status_panel
+    # 简化状态显示
+    show_simple_status
     echo ""
 
-    # 主菜单面板
-    show_main_menu_panel
+    # 简化菜单选项
+    show_simple_options
     echo ""
 
-    # 底部操作栏
-    show_bottom_action_bar
+    echo -n "请选择操作 [1-9, h, q]: "
+}
+
+# 简化状态显示
+show_simple_status() {
+    # 服务状态
+    if is_running; then
+        echo "📊 状态: 🟢 运行中 (PID: $(cat "$PID_FILE" 2>/dev/null || echo "未知"))"
+    else
+        echo "📊 状态: 🔴 已停止"
+    fi
+
+    # 配置状态
+    if [ -f "$CONFIG_FILE" ]; then
+        local path_count=$(grep -c "|" "$CONFIG_FILE" 2>/dev/null || echo "0")
+        echo "⚙️  配置: ✅ 已配置 ($path_count 个同步路径)"
+    else
+        echo "⚙️  配置: ⚠️  未配置"
+    fi
+
+    # 实例信息
+    echo "📁 实例: $INSTANCE_NAME"
+}
+
+# 简化菜单选项
+show_simple_options() {
+    if [ ! -f "$CONFIG_FILE" ]; then
+        # 首次使用菜单
+        echo "🎯 首次配置:"
+        echo "  [1] 快速配置向导 (推荐)"
+        echo "  [2] 手动编辑配置"
+        echo "  [3] 查看配置示例"
+        echo ""
+        echo "🛠️  系统:"
+        echo "  [4] 安装系统服务"
+        echo "  [5] 查看帮助"
+    else
+        # 正常使用菜单
+        echo "🎛️  服务控制:"
+        if is_running; then
+            echo "  [1] 停止服务    [2] 重启服务    [3] 查看状态"
+        else
+            echo "  [1] 启动服务    [2] 重启服务    [3] 查看状态"
+        fi
+        echo ""
+        echo "⚙️  配置管理:"
+        echo "  [4] 编辑配置    [5] 测试配置    [6] 配置向导"
+        echo ""
+        echo "🔄 同步操作:"
+        echo "  [7] 立即同步    [8] 查看日志"
+        echo ""
+        echo "🛠️  系统:"
+        echo "  [9] 系统工具"
+    fi
+    echo ""
+    echo "其他: [h] 帮助  [q] 退出"
 }
 
 # 显示状态面板
@@ -3971,6 +4030,79 @@ show_bottom_action_bar() {
     echo -n "🎯 请选择操作: "
 }
 
+# 简化输入处理
+handle_simple_input() {
+    read -r choice
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        # 首次使用菜单处理
+        case "$choice" in
+            1|w|W) run_setup_wizard ;;
+            2|c|C) edit_config && echo "按任意键继续..." && read -r ;;
+            3|v|V) show_simple_config_example && echo "按任意键继续..." && read -r ;;
+            4|i|I) install && echo "按任意键继续..." && read -r ;;
+            5|h|H) show_simple_help && echo "按任意键继续..." && read -r ;;
+            q|Q|0) exit 0 ;;
+            "") return 0 ;;
+            *) echo "无效选项: $choice" && sleep 1 ;;
+        esac
+    else
+        # 正常使用菜单处理
+        case "$choice" in
+            1)
+                if is_running; then
+                    execute_simple "停止服务" stop_daemon
+                else
+                    execute_simple "启动服务" start_daemon
+                fi
+                echo "按任意键继续..." && read -r
+                ;;
+            2|r|R) execute_simple "重启服务" restart_daemon && echo "按任意键继续..." && read -r ;;
+            3|t|T) show_simple_detailed_status && echo "按任意键继续..." && read -r ;;
+            4|c|C) edit_config && echo "按任意键继续..." && read -r ;;
+            5|e|E) test_config && echo "按任意键继续..." && read -r ;;
+            6|w|W) run_setup_wizard ;;
+            7|y|Y) execute_simple "立即同步" run_sync_once && echo "按任意键继续..." && read -r ;;
+            8|l|L) show_simple_logs && echo "按任意键继续..." && read -r ;;
+            9) show_system_tools_menu ;;
+            h|H) show_simple_help && echo "按任意键继续..." && read -r ;;
+            q|Q|0) exit 0 ;;
+            "") return 0 ;;
+            *) echo "无效选项: $choice" && sleep 1 ;;
+        esac
+    fi
+}
+
+# 系统工具子菜单
+show_system_tools_menu() {
+    while true; do
+        clear
+        echo "=================================="
+        echo "🛠️  系统工具"
+        echo "=================================="
+        echo ""
+        echo "  [1] 安装/重新安装"
+        echo "  [2] 文件迁移"
+        echo "  [3] 查看帮助"
+        echo "  [4] 代码健康检查"
+        echo ""
+        echo "  [0] 返回主菜单"
+        echo ""
+        echo -n "请选择: "
+        read -r tool_choice
+
+        case "$tool_choice" in
+            1) execute_simple "安装系统" install && echo "按任意键继续..." && read -r ;;
+            2) manual_migration ;;
+            3) show_simple_help && echo "按任意键继续..." && read -r ;;
+            4) check_code_health && echo "按任意键继续..." && read -r ;;
+            0) break ;;
+            "") continue ;;
+            *) echo "无效选项: $tool_choice" && sleep 1 ;;
+        esac
+    done
+}
+
 # 处理菜单输入
 handle_menu_input() {
     read -r choice
@@ -4043,53 +4175,33 @@ handle_menu_input() {
     esac
 }
 
-# 带反馈的操作执行
-execute_with_feedback() {
+# 简化的操作执行
+execute_simple() {
     local action_name="$1"
     local command="$2"
-    local icon="${3:-⚡}"
 
-    clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              ${icon} ${action_name}                              ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-    echo ""
+    echo "正在执行: $action_name..."
 
-    # 显示进度指示
-    echo "正在执行操作，请稍候..."
-    echo ""
-
-    # 执行命令
     if $command; then
-        echo ""
-        echo "┌─ ✅ 操作成功 ─────────────────────────────────────────────────────────────────┐"
-        echo "│ ${action_name} 已成功完成                                                     │"
-        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo "✅ $action_name 成功"
     else
-        echo ""
-        echo "┌─ ❌ 操作失败 ─────────────────────────────────────────────────────────────────┐"
-        echo "│ ${action_name} 执行失败，请检查日志获取详细信息                               │"
-        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo "❌ $action_name 失败"
     fi
-
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
 }
 
-# 显示详细状态
-show_detailed_status() {
+# 简化状态显示
+show_simple_detailed_status() {
     clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              📊 系统详细状态                                 ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "=================================="
+    echo "📊 系统状态详情"
+    echo "=================================="
     echo ""
 
     # 调用原有的状态显示函数
     show_status
 
     echo ""
-    echo "┌─ 📈 性能统计 ─────────────────────────────────────────────────────────────────┐"
+    echo "📈 性能统计:"
 
     # 显示内存使用情况
     if is_running; then
@@ -4097,202 +4209,87 @@ show_detailed_status() {
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             local mem_usage=$(ps -o rss= -p "$pid" 2>/dev/null || echo "0")
             local mem_mb=$((mem_usage / 1024))
-            echo "│ 💾 内存使用: ${mem_mb}MB"
+            echo "  💾 内存使用: ${mem_mb}MB"
 
             local cpu_usage=$(ps -o %cpu= -p "$pid" 2>/dev/null || echo "0.0")
-            echo "│ 🖥️  CPU使用: ${cpu_usage}%"
+            echo "  🖥️  CPU使用: ${cpu_usage}%"
         fi
     fi
 
     # 显示日志统计
     if [ -f "$LOG_FILE" ]; then
         local log_lines=$(wc -l < "$LOG_FILE" 2>/dev/null || echo "0")
-        echo "│ 📝 日志行数: $log_lines"
+        echo "  📝 日志行数: $log_lines"
 
         local error_count=$(grep -c "ERROR" "$LOG_FILE" 2>/dev/null || echo "0")
         local warn_count=$(grep -c "WARN" "$LOG_FILE" 2>/dev/null || echo "0")
-        echo "│ ⚠️  警告数量: $warn_count"
-        echo "│ ❌ 错误数量: $error_count"
+        echo "  ⚠️  警告数量: $warn_count"
+        echo "  ❌ 错误数量: $error_count"
     fi
-
-    echo "└───────────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
 }
 
-# 现代化配置示例显示
-show_config_example_modern() {
+# 简化配置示例显示
+show_simple_config_example() {
     clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              📚 配置文件示例                                 ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "=================================="
+    echo "📚 配置文件示例"
+    echo "=================================="
     echo ""
 
     show_config_example
-
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
 }
 
-# 现代化日志显示
-show_logs_modern() {
+# 简化日志显示
+show_simple_logs() {
     clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              📄 同步日志查看                                 ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "=================================="
+    echo "📄 同步日志"
+    echo "=================================="
     echo ""
 
     if [ -f "$LOG_FILE" ]; then
-        echo "┌─ 📊 日志统计 ─────────────────────────────────────────────────────────────────┐"
         local log_size=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
         local log_lines=$(wc -l < "$LOG_FILE" 2>/dev/null || echo "0")
-        echo "│ 文件大小: $(($log_size / 1024))KB  |  总行数: $log_lines"
-        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo "📊 日志统计: $(($log_size / 1024))KB, $log_lines 行"
         echo ""
 
-        # 显示最近的日志
         echo "最近的日志记录:"
-        echo "────────────────────────────────────────────────────────────────────────────────"
+        echo "----------------------------------"
         tail -20 "$LOG_FILE" 2>/dev/null || echo "无法读取日志文件"
-        echo "────────────────────────────────────────────────────────────────────────────────"
+        echo "----------------------------------"
     else
-        echo "┌─ ⚠️  提示 ────────────────────────────────────────────────────────────────────┐"
-        echo "│ 日志文件不存在: $LOG_FILE"
-        echo "│ 请先启动同步服务以生成日志文件"
-        echo "└───────────────────────────────────────────────────────────────────────────────┘"
+        echo "⚠️  日志文件不存在: $LOG_FILE"
+        echo "请先启动同步服务以生成日志文件"
     fi
-
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
 }
 
-# 现代化帮助显示
-show_help_modern() {
+# 简化帮助显示
+show_simple_help() {
     clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              📖 帮助文档                                     ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "=================================="
+    echo "📖 帮助文档"
+    echo "=================================="
     echo ""
 
     show_help
-
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
 }
 
-# 搜索功能处理
-handle_search_function() {
+# 简化的快速帮助
+show_simple_quick_help() {
     clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              🔍 菜单搜索                                     ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "=================================="
+    echo "💡 快速帮助"
+    echo "=================================="
     echo ""
-
-    echo -n "🔍 请输入搜索关键词: "
-    read -r search_term
-
-    if [ -n "$search_term" ]; then
-        echo ""
-        search_choice=$(search_menu_options "$search_term")
-        if [ -n "$search_choice" ] && [ "$search_choice" != "" ]; then
-            # 处理搜索结果
-            handle_menu_choice "$search_choice"
-        else
-            echo ""
-            echo "按任意键返回主菜单..."
-            read -r
-        fi
-    else
-        echo ""
-        echo "搜索关键词不能为空"
-        echo "按任意键返回主菜单..."
-        read -r
-    fi
-}
-
-# 快速帮助
-show_quick_help() {
-    clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              💡 快速帮助                                     ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo "🎯 快捷键说明:"
+    echo "  数字键: 选择对应功能"
+    echo "  [h]: 查看帮助"
+    echo "  [q]: 退出程序"
+    echo "  回车: 刷新界面"
     echo ""
-    echo "┌─ 🎯 快捷键说明 ───────────────────────────────────────────────────────────────┐"
-    echo "│                                                                               │"
-    echo "│  服务控制:  [s] 启动  [x] 停止  [r] 重启  [t] 状态                           │"
-    echo "│  配置管理:  [c] 编辑  [e] 测试  [w] 向导  [v] 示例                           │"
-    echo "│  同步操作:  [y] 同步  [l] 日志                                               │"
-    echo "│  系统工具:  [i] 安装  [h] 帮助  [/] 搜索  [?] 快速帮助                      │"
-    echo "│  程序控制:  [0] 或 [q] 退出程序                                              │"
-    echo "│                                                                               │"
-    echo "└───────────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo "┌─ 🔧 使用技巧 ─────────────────────────────────────────────────────────────────┐"
-    echo "│ • 首次使用请选择 [w] 运行配置向导                                             │"
-    echo "│ • 可以输入完整命令名，如 'start', 'stop', 'config' 等                        │"
-    echo "│ • 直接按回车可以刷新界面状态                                                  │"
-    echo "│ • 使用 [/] 搜索功能快速找到需要的选项                                        │"
-    echo "└───────────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo "按任意键返回主菜单..."
-    read -r
-}
-
-# 退出确认
-show_exit_confirmation() {
-    clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              👋 退出确认                                     ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-    echo ""
-
-    # 检查服务状态
-    if is_running; then
-        echo "┌─ ⚠️  注意 ────────────────────────────────────────────────────────────────────┐"
-        echo "│ GitHub同步服务正在运行中                                                      │"
-        echo "│ 退出此界面不会停止后台服务                                                    │"
-        echo "└───────────────────────────────────────────────────────────────────────────────┘"
-        echo ""
-    fi
-
-    echo "确定要退出吗？"
-    echo ""
-    echo "[y] 确定退出    [n] 返回主菜单"
-    echo ""
-    echo -n "请选择: "
-    read -r confirm
-
-    case "$confirm" in
-        y|Y|yes|YES)
-            echo ""
-            echo "👋 感谢使用 GitHub File Sync Tool！"
-            log_info "用户退出程序"
-            exit 0
-            ;;
-        *)
-            return 0
-            ;;
-    esac
-}
-
-# 无效输入提示
-show_invalid_input_message() {
-    local input="$1"
-    clear
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                              ❌ 无效输入                                     ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-    echo ""
-    echo "┌─ ⚠️  输入错误 ────────────────────────────────────────────────────────────────┐"
-    echo "│ 无效的选项: '$input'"
-    echo "│ 请输入有效的选项或快捷键"
-    echo "└───────────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo "💡 提示: 输入 [?] 查看所有可用选项"
+    echo "🔧 使用技巧:"
+    echo "  • 首次使用请选择 [1] 运行配置向导"
+    echo "  • 直接按回车可以刷新界面状态"
     echo ""
     echo "按任意键返回主菜单..."
     read -r
