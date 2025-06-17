@@ -113,6 +113,7 @@ log_error() { log "ERROR" "$1"; }
 log_warn() { log "WARN" "$1"; }
 log_info() { log "INFO" "$1"; }
 log_debug() { log "DEBUG" "$1"; }
+log_success() { log "SUCCESS" "$1"; }
 
 # 获取文件大小（兼容不同系统）
 # 功能: 获取指定文件的字节大小，兼容GNU和BSD系统
@@ -2655,13 +2656,8 @@ run_quick_wizard() {
     # 获取GitHub基本信息
     get_github_credentials
 
-    # 选择模板
-    select_template
-
-    # 使用默认高级设置
-    poll_interval=30
-    log_level="INFO"
-    auto_commit=true
+    # 使用简化的配置方法
+    setup_basic_config
 
     create_config_file
     test_and_finish
@@ -2965,27 +2961,39 @@ get_basic_advanced_options() {
 
 
 
-# 简化的模板选择
-select_template() {
+# 简化的配置方法
+setup_basic_config() {
     echo ""
-    echo "[模板] 选择配置模板："
+    echo "[配置] 基本同步配置"
     echo ""
-    echo "1) OpenWrt路由器 - 基本配置文件同步"
-    echo "2) 开发环境 - Shell和编辑器配置"
-    echo "3) 自定义 - 手动指定同步路径"
-    echo ""
-    echo -n "请选择模板 [1-3]: "
-    read -r template_choice
 
-    case "$template_choice" in
-        1) apply_openwrt_template ;;
-        2) apply_dev_template ;;
-        3) apply_custom_template ;;
-        *)
-            log_info "使用OpenWrt路由器模板"
-            apply_openwrt_template
-            ;;
-    esac
+    # 获取GitHub仓库名称
+    echo -n "GitHub仓库名称 (默认: config-backup): "
+    read -r repo_name
+    repo_name=${repo_name:-config-backup}
+
+    # 获取本地路径
+    echo -n "本地文件/目录路径 (默认: /etc/config): "
+    read -r local_path
+    local_path=${local_path:-/etc/config}
+
+    # 获取目标路径
+    echo -n "仓库中的目标路径 (可留空): "
+    read -r target_path
+
+    # 设置同步路径
+    sync_paths="$local_path|$github_username/$repo_name|main|$target_path"
+
+    # 设置默认配置
+    poll_interval=60
+    log_level="INFO"
+    auto_commit=true
+    commit_template="Auto sync %s"
+    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~"
+    max_file_size=1048576
+
+    echo ""
+    echo "[配置] 已设置同步路径: $local_path -> $github_username/$repo_name"
 }
 
 # 创建配置文件
@@ -3245,81 +3253,11 @@ edit_github_credentials() {
     test_and_finish
 }
 
-# OpenWrt路由器模板
-apply_openwrt_template() {
-    echo ""
-    echo "[OpenWrt] 路由器配置模板"
-    echo ""
 
-    echo -n "GitHub仓库名称 (默认: openwrt-config): "
-    read -r repo_name
-    repo_name=${repo_name:-openwrt-config}
 
-    sync_paths="/etc/config|$github_username/$repo_name|main|config
-/etc/firewall.user|$github_username/$repo_name|main|firewall.user
-/etc/crontabs/root|$github_username/$repo_name|main|crontab"
 
-    poll_interval=60
-    log_level="INFO"
-    auto_commit=true
-    commit_template="Auto sync %s from OpenWrt"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git .uci-*"
-    max_file_size=1048576
-}
 
-# 开发环境模板
-apply_dev_template() {
-    echo ""
-    echo "[开发] 开发环境配置模板"
-    echo ""
 
-    echo -n "GitHub仓库名称 (默认: dev-config): "
-    read -r repo_name
-    repo_name=${repo_name:-dev-config}
-
-    sync_paths="$HOME/.bashrc|$github_username/$repo_name|main|bashrc
-$HOME/.vimrc|$github_username/$repo_name|main|vimrc
-$HOME/.gitconfig|$github_username/$repo_name|main|gitconfig"
-
-    poll_interval=30
-    log_level="INFO"
-    auto_commit=true
-    commit_template="Auto sync %s"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~"
-    max_file_size=1048576
-}
-
-# 自定义模板
-apply_custom_template() {
-    echo ""
-    echo "[自定义] 自定义配置"
-    echo ""
-
-    # 简化的自定义路径配置
-    echo -n "GitHub仓库名称 (默认: config-backup): "
-    read -r repo_name
-    repo_name=${repo_name:-config-backup}
-
-    echo -n "本地文件/目录路径: "
-    read -r local_path
-
-    if [ -z "$local_path" ]; then
-        local_path="/etc/config"
-        echo "使用默认路径: $local_path"
-    fi
-
-    echo -n "目标路径 (可留空): "
-    read -r target_path
-
-    sync_paths="$local_path|$github_username/$repo_name|main|$target_path"
-
-    poll_interval=60
-    log_level="INFO"
-    auto_commit=true
-    commit_template="Auto sync %s"
-    exclude_patterns="*.tmp *.log *.pid *.lock .git"
-    max_file_size=1048576
-}
 
 # 显示配置示例
 show_config_example() {
