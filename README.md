@@ -15,54 +15,27 @@
 
 ### 一键安装（推荐）
 
-**国外用户（GitHub原站）**：
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
-```
-
-**国内用户（加速镜像）**：
-```bash
+# 一键安装（使用加速镜像，适合国内用户）
 bash <(curl -Ls https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
 ```
 
-> 💡 **智能源选择**：安装脚本会自动检测网络环境，选择最快的下载源
-
 **安装过程**：
-1. 自动检测系统类型并安装依赖
-2. 下载所有必要文件到 `/root/github-sync`
-3. 设置执行权限和系统配置
-4. **自动启动交互式主程序**
+1. 下载文件到 `/root/github-sync`
+2. 设置执行权限
+3. **自动启动交互式主程序**
 
 ### 手动安装
 
-**GitHub原站**：
 ```bash
-# 1. 下载文件
-mkdir -p /root/github-sync && cd /root/github-sync
-curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.sh -o github-sync.sh
-curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/README.md -o README.md
-curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.conf.example -o github-sync.conf.example
-
-# 2. 设置权限
-chmod +x github-sync.sh
-
-# 3. 安装依赖（OpenWrt系统）
-./github-sync.sh install
-```
-
-**加速镜像（国内用户）**：
-```bash
-# 1. 下载文件
+# 下载文件
 mkdir -p /root/github-sync && cd /root/github-sync
 curl -fsSL https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.sh -o github-sync.sh
-curl -fsSL https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/README.md -o README.md
 curl -fsSL https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.conf.example -o github-sync.conf.example
 
-# 2. 设置权限
+# 设置权限并启动
 chmod +x github-sync.sh
-
-# 3. 安装依赖（OpenWrt系统）
-./github-sync.sh install
+./github-sync.sh
 ```
 
 ### 配置工具
