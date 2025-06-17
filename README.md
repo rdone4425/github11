@@ -13,13 +13,34 @@
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 一键安装（推荐）
 ```bash
-# OpenWrt系统会自动安装必要依赖
+# 一键下载并安装，安装完成后自动进入交互式主程序
+bash <(curl -Ls https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+```
+
+**安装过程**：
+1. 自动检测系统类型并安装依赖
+2. 下载所有必要文件到 `/root/github-sync`
+3. 设置执行权限和系统配置
+4. **自动启动交互式主程序**
+
+### 手动安装
+```bash
+# 1. 下载文件
+mkdir -p /root/github-sync && cd /root/github-sync
+curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.sh -o github-sync.sh
+curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/README.md -o README.md
+curl -fsSL https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.conf.example -o github-sync.conf.example
+
+# 2. 设置权限
+chmod +x github-sync.sh
+
+# 3. 安装依赖（OpenWrt系统）
 ./github-sync.sh install
 ```
 
-### 2. 配置工具
+### 配置工具
 ```bash
 # 启动配置向导
 ./github-sync.sh config
@@ -31,7 +52,7 @@
 - **同步路径**: 要监控的本地文件或目录路径
 - **目标仓库**: GitHub仓库名（格式：用户名/仓库名）
 
-### 3. 启动服务
+### 启动服务
 ```bash
 # 测试配置
 ./github-sync.sh test
