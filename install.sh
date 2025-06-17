@@ -1,41 +1,15 @@
 #!/bin/bash
 
 # GitHub文件同步工具一键安装脚本
-# 适用于OpenWrt/Kwrt系统
 
-set -e
-
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# 项目信息
-REPO_URL="https://github.com/rdone4425/github11"
-RAW_URL="https://raw.githubusercontent.com/rdone4425/github11/main"
-# GitHub加速域名（国内用户）
-MIRROR_PREFIX="https://git.910626.xyz/"
+# 基本配置
 INSTALL_DIR="/root/github-sync"
-SCRIPT_NAME="github-sync.sh"
+BASE_URL="https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main"
 
-# 日志函数
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1"
-}
+echo "=================================="
+echo "GitHub文件同步工具 - 一键安装"
+echo "=================================="
+echo ""
 
 # 检测最佳下载源
 detect_best_source() {
@@ -71,115 +45,34 @@ detect_best_source() {
     fi
 }
 
-# 检测最佳下载源
-detect_best_source() {
-    log_info "检测网络环境，选择最佳下载源..."
+# 简单安装函数
+install_tool() {
+    echo "1. 创建安装目录..."
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
 
-    # 测试GitHub原站连接
-    if curl -s --connect-timeout 5 --max-time 8 "${RAW_URL}/README.md" >/dev/null 2>&1; then
-        log_info "GitHub原站连接正常，使用原站下载"
-        echo "$RAW_URL"
-        return 0
+    echo "2. 下载主程序..."
+    if ! curl -fsSL "$BASE_URL/github-sync.sh" -o github-sync.sh; then
+        echo "下载失败，请检查网络连接"
+        exit 1
     fi
 
-    # GitHub原站连接失败，尝试加速镜像
-    log_warn "GitHub原站连接较慢，尝试使用加速镜像..."
-    if curl -s --connect-timeout 5 --max-time 8 "${MIRROR_PREFIX}${RAW_URL}/README.md" >/dev/null 2>&1; then
-        log_info "加速镜像连接成功，使用镜像下载"
-        echo "${MIRROR_PREFIX}${RAW_URL}"
-        return 0
-    fi
+    echo "3. 设置权限..."
+    chmod +x github-sync.sh
 
-    # 两个源都有问题，使用原站并提示用户
-    log_warn "网络连接不稳定，将使用GitHub原站，可能下载较慢"
-    echo "$RAW_URL"
-}
+    echo "4. 下载配置示例..."
+    curl -fsSL "$BASE_URL/github-sync.conf.example" -o github-sync.conf.example 2>/dev/null || echo "配置示例下载失败，跳过"
 
-# 检测系统类型
-detect_system() {
-    if [ -f /etc/openwrt_release ]; then
-        echo "openwrt"
-    elif command -v opkg >/dev/null 2>&1; then
-        echo "openwrt"
-    elif [ -f /etc/debian_version ]; then
-        echo "debian"
-    elif [ -f /etc/redhat-release ]; then
-        echo "redhat"
-    else
-        echo "unknown"
-    fi
-}
+    echo ""
+    echo "✅ 安装完成！"
+    echo ""
+    echo "安装目录: $INSTALL_DIR"
+    echo ""
+    echo "正在启动程序..."
+    sleep 2
 
-# 安装依赖
-install_dependencies() {
-    local system_type=$(detect_system)
-    
-    log_info "检测到系统类型: $system_type"
-    
-    case "$system_type" in
-        "openwrt")
-            log_info "OpenWrt系统，检查必要工具..."
-            
-            # 检查curl
-            if ! command -v curl >/dev/null 2>&1; then
-                log_info "安装curl..."
-                opkg update && opkg install curl
-            fi
-            
-            # 检查base64
-            if ! command -v base64 >/dev/null 2>&1; then
-                log_info "安装coreutils-base64..."
-                opkg install coreutils-base64
-            fi
-            ;;
-        "debian")
-            log_info "Debian系统，检查必要工具..."
-            if ! command -v curl >/dev/null 2>&1; then
-                apt-get update && apt-get install -y curl
-            fi
-            ;;
-        *)
-            log_warn "未知系统类型，请手动确保curl和base64工具可用"
-            ;;
-    esac
-}
-
-# 下载文件
-download_file() {
-    local filename="$1"
-    local output="$2"
-    local base_url="$3"
-
-    local full_url="${base_url}/${filename}"
-    log_info "下载: $filename"
-
-    # 尝试下载，如果失败则重试
-    local max_retries=3
-    local retry_count=0
-
-    while [ $retry_count -lt $max_retries ]; do
-        if command -v curl >/dev/null 2>&1; then
-            if curl -fsSL "$full_url" -o "$output" 2>/dev/null; then
-                return 0
-            fi
-        elif command -v wget >/dev/null 2>&1; then
-            if wget -q "$full_url" -O "$output" 2>/dev/null; then
-                return 0
-            fi
-        else
-            log_error "未找到curl或wget，无法下载文件"
-            exit 1
-        fi
-
-        retry_count=$((retry_count + 1))
-        if [ $retry_count -lt $max_retries ]; then
-            log_warn "下载失败，正在重试 ($retry_count/$max_retries)..."
-            sleep 2
-        fi
-    done
-
-    log_error "下载失败: $filename"
-    return 1
+    # 启动主程序
+    ./github-sync.sh
 }
 
 # 主安装函数
@@ -212,11 +105,29 @@ main_install() {
 
     # 下载主程序
     log_info "步骤 4/5: 下载GitHub同步工具..."
+
+    # 下载主程序（必须成功）
     if ! download_file "$SCRIPT_NAME" "$SCRIPT_NAME" "$best_source"; then
-        log_error "下载主程序失败"
-        exit 1
+        log_warn "使用首选源下载失败，尝试备用源..."
+
+        # 尝试备用源
+        local backup_source
+        if echo "$best_source" | grep -q "git.910626.xyz"; then
+            backup_source="$RAW_URL"
+            log_info "尝试GitHub原站..."
+        else
+            backup_source="${MIRROR_PREFIX}${RAW_URL}"
+            log_info "尝试加速镜像..."
+        fi
+
+        if ! download_file "$SCRIPT_NAME" "$SCRIPT_NAME" "$backup_source"; then
+            log_error "所有下载源都失败，无法继续安装"
+            log_error "请检查网络连接或稍后重试"
+            exit 1
+        fi
     fi
 
+    # 下载其他文件（可选）
     if ! download_file "README.md" "README.md" "$best_source"; then
         log_warn "下载README.md失败，跳过"
     fi
