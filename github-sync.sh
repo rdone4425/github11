@@ -10,15 +10,20 @@
 
 # 全局变量
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-CONFIG_FILE="${SCRIPT_DIR}/github-sync.conf"
-LOG_FILE="${SCRIPT_DIR}/github-sync.log"
-PID_FILE="${SCRIPT_DIR}/github-sync.pid"
-LOCK_FILE="${SCRIPT_DIR}/github-sync.lock"
+
+# 支持多实例 - 可通过环境变量或参数指定实例名
+INSTANCE_NAME="${GITHUB_SYNC_INSTANCE:-default}"
+CONFIG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.conf"
+LOG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.log"
+PID_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.pid"
+LOCK_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.lock"
 
 # 默认配置
 DEFAULT_POLL_INTERVAL=30
 DEFAULT_LOG_LEVEL="INFO"
 DEFAULT_MAX_LOG_SIZE=1048576  # 1MB
+DEFAULT_LOG_KEEP_DAYS=7       # 保留7天的日志
+DEFAULT_LOG_MAX_FILES=10      # 最多保留10个日志文件
 
 # 颜色输出
 RED='\033[0;31m'
@@ -35,28 +40,47 @@ log() {
     local level="$1"
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    # 写入日志文件
-    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
-    
-    # 控制台输出（根据级别着色）
-    case "$level" in
+
+    # 检查日志级别
+    case "$LOG_LEVEL" in
         "ERROR")
-            echo -e "${RED}[ERROR]${NC} $message" >&2
+            [ "$level" != "ERROR" ] && return
             ;;
         "WARN")
-            echo -e "${YELLOW}[WARN]${NC} $message"
+            [ "$level" != "ERROR" ] && [ "$level" != "WARN" ] && return
             ;;
         "INFO")
-            echo -e "${GREEN}[INFO]${NC} $message"
+            [ "$level" = "DEBUG" ] && return
             ;;
         "DEBUG")
-            echo -e "${BLUE}[DEBUG]${NC} $message"
-            ;;
-        *)
-            echo "[$level] $message"
+            # 显示所有级别
             ;;
     esac
+
+    # 写入日志文件
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+
+    # 控制台输出（只在交互模式下显示）
+    # 在守护进程模式下绝对不输出到控制台
+    if [ "${DAEMON_MODE:-false}" != "true" ] && [ "${GITHUB_SYNC_QUIET:-false}" != "true" ]; then
+        case "$level" in
+            "ERROR")
+                echo -e "${RED}[ERROR]${NC} $message" >&2
+                ;;
+            "WARN")
+                echo -e "${YELLOW}[WARN]${NC} $message"
+                ;;
+            "INFO")
+                echo -e "${GREEN}[INFO]${NC} $message"
+                ;;
+            "DEBUG")
+                echo -e "${BLUE}[DEBUG]${NC} $message"
+                ;;
+            *)
+                echo "[$level] $message"
+                ;;
+        esac
+    fi
 }
 
 log_error() { log "ERROR" "$1"; }
@@ -64,12 +88,147 @@ log_warn() { log "WARN" "$1"; }
 log_info() { log "INFO" "$1"; }
 log_debug() { log "DEBUG" "$1"; }
 
-# 日志文件大小管理
+# 获取文件大小（兼容不同系统）
+get_file_size() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo 0
+        return
+    fi
+
+    if command -v stat >/dev/null 2>&1; then
+        # 尝试GNU stat (Linux)
+        stat -c%s "$file" 2>/dev/null || \
+        # 尝试BSD stat (macOS, FreeBSD)
+        stat -f%z "$file" 2>/dev/null || \
+        # 回退方案
+        wc -c < "$file" 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
+}
+
+# 获取文件修改时间（天数）
+get_file_age_days() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo 999
+        return
+    fi
+
+    local file_mtime
+    if command -v stat >/dev/null 2>&1; then
+        # GNU stat (Linux)
+        file_mtime=$(stat -c %Y "$file" 2>/dev/null) || \
+        # BSD stat (macOS, FreeBSD)
+        file_mtime=$(stat -f %m "$file" 2>/dev/null) || \
+        file_mtime=0
+    else
+        file_mtime=0
+    fi
+
+    local current_time=$(date +%s)
+    local age_seconds=$((current_time - file_mtime))
+    local age_days=$((age_seconds / 86400))
+
+    echo $age_days
+}
+
+# 清理旧日志文件
+cleanup_old_logs() {
+    local log_dir=$(dirname "$LOG_FILE")
+    local log_basename=$(basename "$LOG_FILE")
+    local keep_days=${LOG_KEEP_DAYS:-$DEFAULT_LOG_KEEP_DAYS}
+    local max_files=${LOG_MAX_FILES:-$DEFAULT_LOG_MAX_FILES}
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local deleted_count=0
+    local total_size_freed=0
+
+    # 清理基于时间的旧日志
+    find "$log_dir" -name "${log_basename}.*" -type f | while read -r old_log; do
+        local age_days=$(get_file_age_days "$old_log")
+        if [ "$age_days" -gt "$keep_days" ]; then
+            local file_size=$(get_file_size "$old_log")
+            if rm -f "$old_log" 2>/dev/null; then
+                deleted_count=$((deleted_count + 1))
+                total_size_freed=$((total_size_freed + file_size))
+                echo "[$timestamp] [INFO] 已删除过期日志文件: $old_log (年龄: ${age_days}天, 大小: ${file_size}字节)" >> "$LOG_FILE"
+            fi
+        fi
+    done
+
+    # 限制日志文件数量
+    local log_count=$(find "$log_dir" -name "${log_basename}.*" -type f | wc -l)
+    if [ "$log_count" -gt "$max_files" ]; then
+        # 删除最旧的日志文件
+        find "$log_dir" -name "${log_basename}.*" -type f -exec ls -t {} + | \
+        tail -n +$((max_files + 1)) | while read -r old_log; do
+            local file_size=$(get_file_size "$old_log")
+            if rm -f "$old_log" 2>/dev/null; then
+                deleted_count=$((deleted_count + 1))
+                total_size_freed=$((total_size_freed + file_size))
+                echo "[$timestamp] [INFO] 已删除多余日志文件: $old_log (大小: ${file_size}字节)" >> "$LOG_FILE"
+            fi
+        done
+    fi
+
+    # 记录清理统计
+    if [ "$deleted_count" -gt 0 ]; then
+        local size_mb=$(echo "scale=2; $total_size_freed/1024/1024" | bc 2>/dev/null || echo "N/A")
+        echo "[$timestamp] [INFO] 日志清理完成: 删除 $deleted_count 个文件, 释放 $total_size_freed 字节 (${size_mb}MB)" >> "$LOG_FILE"
+    else
+        echo "[$timestamp] [INFO] 日志清理完成: 无需删除文件" >> "$LOG_FILE"
+    fi
+}
+
+# 日志文件轮转和清理
 rotate_log() {
-    if [ -f "$LOG_FILE" ] && [ $(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0) -gt $DEFAULT_MAX_LOG_SIZE ]; then
-        mv "$LOG_FILE" "${LOG_FILE}.old"
+    if [ ! -f "$LOG_FILE" ]; then
+        return
+    fi
+
+    local file_size=$(get_file_size "$LOG_FILE")
+    local max_size=${LOG_MAX_SIZE:-$DEFAULT_MAX_LOG_SIZE}
+
+    # 基于文件大小轮转
+    if [ "$file_size" -gt "$max_size" ]; then
+        local timestamp=$(date '+%Y%m%d_%H%M%S')
+        local rotated_log="${LOG_FILE}.${timestamp}"
+
+        # 轮转当前日志文件
+        mv "$LOG_FILE" "$rotated_log"
         touch "$LOG_FILE"
-        log_info "日志文件已轮转"
+
+        # 记录轮转信息
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] 日志文件已轮转: $rotated_log (大小: ${file_size} bytes)" >> "$LOG_FILE"
+
+        # 清理旧日志文件
+        cleanup_old_logs
+    fi
+}
+
+# 定期清理日志（每天执行一次）
+periodic_log_cleanup() {
+    local cleanup_marker="${SCRIPT_DIR}/.last_log_cleanup_$(echo "$INSTANCE_NAME" | tr '/' '_')"
+    local today=$(date '+%Y%m%d')
+    local current_hour=$(date '+%H')
+
+    # 检查是否今天已经清理过
+    if [ -f "$cleanup_marker" ]; then
+        local last_cleanup=$(cat "$cleanup_marker" 2>/dev/null || echo "")
+        if [ "$last_cleanup" = "$today" ]; then
+            return  # 今天已经清理过了
+        fi
+    fi
+
+    # 只在凌晨2点到6点之间执行清理（避免在业务繁忙时间清理）
+    if [ "$current_hour" -ge 2 ] && [ "$current_hour" -le 6 ]; then
+        # 执行清理
+        cleanup_old_logs
+
+        # 记录清理时间
+        echo "$today" > "$cleanup_marker"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] 执行每日日志清理 (实例: $INSTANCE_NAME)" >> "$LOG_FILE"
     fi
 }
 
@@ -102,6 +261,11 @@ EXCLUDE_PATTERNS="*.tmp *.log *.pid *.lock .git"
 AUTO_COMMIT=true
 COMMIT_MESSAGE_TEMPLATE="Auto sync from OpenWrt: %s"
 MAX_FILE_SIZE=1048576  # 1MB
+
+# 日志管理选项
+LOG_MAX_SIZE=1048576   # 日志文件最大大小 (1MB)
+LOG_KEEP_DAYS=7        # 保留日志天数
+LOG_MAX_FILES=10       # 最多保留日志文件数
 EOF
     log_info "已创建默认配置文件: $CONFIG_FILE"
 }
@@ -148,9 +312,15 @@ validate_config() {
     
     # 验证监控路径
     echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
-        if [ ! -d "$local_path" ]; then
+        if [ ! -e "$local_path" ]; then
             log_error "监控路径不存在: $local_path"
             errors=$((errors + 1))
+        elif [ -f "$local_path" ]; then
+            log_debug "监控文件: $local_path"
+        elif [ -d "$local_path" ]; then
+            log_debug "监控目录: $local_path"
+        else
+            log_warn "路径类型未知: $local_path"
         fi
     done
     
@@ -202,8 +372,18 @@ upload_file_to_github() {
         return 1
     fi
     
-    # 检查文件大小
-    local file_size=$(stat -c%s "$local_file" 2>/dev/null || echo 0)
+    # 检查文件大小（兼容不同系统）
+    local file_size
+    if command -v stat >/dev/null 2>&1; then
+        # 尝试GNU stat (Linux)
+        file_size=$(stat -c%s "$local_file" 2>/dev/null) || \
+        # 尝试BSD stat (macOS, FreeBSD)
+        file_size=$(stat -f%z "$local_file" 2>/dev/null) || \
+        # 回退方案
+        file_size=$(wc -c < "$local_file" 2>/dev/null || echo 0)
+    else
+        file_size=0
+    fi
     if [ "$file_size" -gt "${MAX_FILE_SIZE:-1048576}" ]; then
         log_error "文件太大，跳过: $local_file (${file_size} bytes)"
         return 1
@@ -264,39 +444,87 @@ should_exclude_file() {
     return 1  # 不应该排除
 }
 
-# 获取文件的修改时间戳
+# 获取文件的修改时间戳（兼容不同系统）
 get_file_mtime() {
-    stat -c %Y "$1" 2>/dev/null || echo 0
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo 0
+        return
+    fi
+
+    # 尝试不同的stat命令格式
+    if command -v stat >/dev/null 2>&1; then
+        # GNU stat (Linux)
+        stat -c %Y "$file" 2>/dev/null || \
+        # BSD stat (macOS, FreeBSD)
+        stat -f %m "$file" 2>/dev/null || \
+        echo 0
+    else
+        echo 0
+    fi
 }
 
 # 扫描目录中的文件变化
 scan_directory_changes() {
     local watch_path="$1"
     local state_file="${SCRIPT_DIR}/.state_$(echo "$watch_path" | tr '/' '_')"
-    
-    log_debug "扫描目录变化: $watch_path"
-    
+
     # 创建状态文件（如果不存在）
     [ ! -f "$state_file" ] && touch "$state_file"
-    
-    # 扫描所有文件
-    find "$watch_path" -type f | while read -r file; do
+
+    # 检查是文件还是目录
+    if [ -f "$watch_path" ]; then
+        # 单个文件监控
         # 检查是否应该排除
-        if should_exclude_file "$file"; then
-            continue
+        if should_exclude_file "$watch_path"; then
+            return
         fi
-        
-        local current_mtime=$(get_file_mtime "$file")
-        local stored_mtime=$(grep "^$file:" "$state_file" | cut -d: -f2)
-        
+
+        local current_mtime=$(get_file_mtime "$watch_path")
+        local stored_mtime=$(grep "^$watch_path:" "$state_file" | cut -d: -f2)
+
         if [ "$current_mtime" != "$stored_mtime" ]; then
-            echo "$file"
+            echo "$watch_path"
             # 更新状态文件
-            grep -v "^$file:" "$state_file" > "${state_file}.tmp" 2>/dev/null || true
-            echo "$file:$current_mtime" >> "${state_file}.tmp"
+            {
+                grep -v "^$watch_path:" "$state_file" 2>/dev/null || true
+                echo "$watch_path:$current_mtime"
+            } > "${state_file}.tmp"
             mv "${state_file}.tmp" "$state_file"
         fi
-    done
+    elif [ -d "$watch_path" ]; then
+        # 目录监控
+        # 扫描目录中的所有文件
+        find "$watch_path" -type f | while read -r file; do
+            # 检查是否应该排除
+            if should_exclude_file "$file"; then
+                continue
+            fi
+
+            local current_mtime=$(get_file_mtime "$file")
+            local stored_mtime=$(grep "^$file:" "$state_file" | cut -d: -f2)
+
+            if [ "$current_mtime" != "$stored_mtime" ]; then
+                echo "$file"
+            fi
+        done
+
+        # 批量更新状态文件（在循环外）
+        local temp_state="${state_file}.tmp"
+        find "$watch_path" -type f | while read -r file; do
+            if ! should_exclude_file "$file"; then
+                local current_mtime=$(get_file_mtime "$file")
+                echo "$file:$current_mtime"
+            fi
+        done > "$temp_state"
+
+        if [ -f "$temp_state" ]; then
+            mv "$temp_state" "$state_file"
+        fi
+    else
+        # 将错误输出到stderr，不影响函数返回值
+        echo "监控路径既不是文件也不是目录: $watch_path" >&2
+    fi
 }
 
 #==============================================================================
@@ -312,11 +540,25 @@ sync_file() {
     local target_base="$5"
     
     # 计算相对路径
-    local relative_path="${local_file#$base_path/}"
-    local target_path="$target_base/$relative_path"
+    local relative_path
+    if [ -f "$base_path" ]; then
+        # 如果base_path是文件，则使用文件名作为相对路径
+        relative_path=$(basename "$local_file")
+    else
+        # 如果base_path是目录，则计算相对路径
+        relative_path="${local_file#$base_path/}"
+    fi
+
+    # 构建目标路径
+    local target_path
+    if [ -n "$target_base" ]; then
+        target_path="$target_base/$relative_path"
+    else
+        target_path="$relative_path"
+    fi
     
-    # 清理路径
-    target_path=$(echo "$target_path" | sed 's|//*|/|g' | sed 's|^/||')
+    # 清理路径（移除多余的斜杠和开头的斜杠）
+    target_path=$(echo "$target_path" | sed 's|//*|/|g' | sed 's|^/||' | sed 's|/$||')
     
     # 生成提交消息
     local commit_message
@@ -351,7 +593,7 @@ process_sync_path() {
         return 1
     fi
     
-    if [ ! -d "$local_path" ]; then
+    if [ ! -e "$local_path" ]; then
         log_error "监控路径不存在: $local_path"
         return 1
     fi
@@ -360,17 +602,35 @@ process_sync_path() {
     [ -z "$target_path" ] && target_path=""
     
     log_debug "处理同步路径: $local_path -> $repo:$branch/$target_path"
-    
+
     # 扫描文件变化
     local changed_files
-    changed_files=$(scan_directory_changes "$local_path")
-    
+    # 完全静默执行，避免任何输出混乱
+    changed_files=$(scan_directory_changes "$local_path" 2>/dev/null | grep -v "^$")
+
     if [ -n "$changed_files" ]; then
-        log_info "发现 $(echo "$changed_files" | wc -l) 个文件变化"
-        
+        # 计算实际的文件数量（过滤空行）
+        local file_count=0
+        local valid_files=""
+
         echo "$changed_files" | while read -r file; do
-            sync_file "$file" "$repo" "$branch" "$local_path" "$target_path"
+            if [ -n "$file" ] && [ -f "$file" ]; then
+                file_count=$((file_count + 1))
+                valid_files="$valid_files$file\n"
+            fi
         done
+
+        # 重新计算文件数量
+        file_count=$(echo "$changed_files" | grep -c "^/" 2>/dev/null || echo "0")
+        if [ "$file_count" -gt 0 ]; then
+            log_info "发现 $file_count 个文件变化"
+
+            echo "$changed_files" | while read -r file; do
+                if [ -n "$file" ] && [ -f "$file" ]; then
+                    sync_file "$file" "$repo" "$branch" "$local_path" "$target_path"
+                fi
+            done
+        fi
     else
         log_debug "未发现文件变化: $local_path"
     fi
@@ -379,16 +639,22 @@ process_sync_path() {
 # 主监控循环
 monitor_loop() {
     log_info "开始文件监控，轮询间隔: ${POLL_INTERVAL}秒"
-    
+
+    # 启动时检查是否需要清理日志
+    periodic_log_cleanup
+
     while true; do
-        # 轮转日志
+        # 轮转日志（基于文件大小）
         rotate_log
-        
+
+        # 每天清理一次日志
+        periodic_log_cleanup
+
         # 处理所有同步路径
         echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
             [ -n "$local_path" ] && process_sync_path "$local_path|$repo|$branch|$target_path"
         done
-        
+
         # 等待下一次轮询
         sleep "$POLL_INTERVAL"
     done
@@ -434,7 +700,11 @@ start_daemon() {
     fi
 
     # 启动后台进程
-    (
+    {
+        # 设置守护进程模式标志
+        export DAEMON_MODE=true
+        export GITHUB_SYNC_QUIET=true
+
         # 记录PID
         echo $$ > "$PID_FILE"
 
@@ -446,7 +716,7 @@ start_daemon() {
 
         # 开始监控
         monitor_loop
-    ) &
+    } >> "$LOG_FILE" 2>&1 &
 
     # 等待一下确保启动成功
     sleep 2
@@ -680,41 +950,893 @@ GitHub File Sync Tool for OpenWrt/Kwrt Systems
     install         安装工具和服务
     config          编辑配置文件
     logs            显示日志
+    cleanup         清理日志文件
+    list            列出所有实例
     help            显示此帮助信息
 
 选项:
+    -i, --instance NAME  指定实例名称（默认: default）
     -c, --config FILE    指定配置文件路径
     -v, --verbose        详细输出
     -q, --quiet          静默模式
 
-示例:
-    $0 install          # 安装工具
-    $0 config           # 编辑配置
-    $0 test             # 测试配置
-    $0 start            # 启动服务
-    $0 status           # 查看状态
+多实例支持:
+    # 为不同项目创建独立实例
+    $0 -i project1 config    # 配置project1实例
+    $0 -i project1 start     # 启动project1实例
+    $0 -i project2 config    # 配置project2实例
+    $0 -i project2 start     # 启动project2实例
+    $0 list                  # 列出所有实例
 
+示例:
+    $0 install               # 安装工具
+    $0 config                # 编辑默认实例配置
+    $0 -i subs-check config  # 编辑subs-check实例配置
+    $0 test                  # 测试默认实例
+    $0 -i subs-check start   # 启动subs-check实例
+    $0 status                # 查看默认实例状态
+    $0 list                  # 列出所有实例状态
+
+日志管理:
+    • 自动轮转: 文件大小超过1MB时自动轮转
+    • 自动清理: 每天凌晨2-6点清理过期日志
+    • 保留策略: 默认保留7天，最多10个文件
+
+当前实例: $INSTANCE_NAME
 配置文件: $CONFIG_FILE
 日志文件: $LOG_FILE
 EOF
 }
 
-# 编辑配置文件
+# 交互式配置编辑
 edit_config() {
     if [ ! -f "$CONFIG_FILE" ]; then
-        create_default_config
+        echo ""
+        log_warn "配置文件不存在，将创建新配置"
+        echo ""
+        echo "选择创建方式："
+        echo "1) 使用配置向导创建"
+        echo "2) 创建默认配置文件"
+        echo "3) 取消"
+        echo ""
+        echo -n "请选择 [1-3]: "
+        read -r create_choice
+
+        case "$create_choice" in
+            1)
+                run_setup_wizard
+                return $?
+                ;;
+            2)
+                create_default_config
+                ;;
+            *)
+                log_info "取消创建配置文件"
+                return 0
+                ;;
+        esac
     fi
 
-    # 尝试使用可用的编辑器
-    for editor in vi nano; do
-        if command -v "$editor" >/dev/null 2>&1; then
-            "$editor" "$CONFIG_FILE"
+    # 显示交互式配置编辑菜单
+    show_config_edit_menu
+}
+
+# 显示配置编辑菜单
+show_config_edit_menu() {
+    while true; do
+        clear
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                    配置文件编辑器                            ║"
+        echo "║                Configuration File Editor                     ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+
+        # 加载并显示当前配置
+        if load_config 2>/dev/null; then
+            echo "📋 当前配置摘要:"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  🔑 GitHub用户: ${GITHUB_USERNAME:-未设置}"
+            echo "  ⏱️  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
+            echo "  📊 日志级别: ${LOG_LEVEL:-未设置}"
+
+            # 统计同步路径数量
+            if [ -n "$SYNC_PATHS" ]; then
+                local path_count=$(echo "$SYNC_PATHS" | grep -c "|" 2>/dev/null || echo "0")
+                echo "  📁 同步路径: $path_count 个"
+            else
+                echo "  📁 同步路径: 未配置"
+            fi
+
+            echo "  🔧 自动提交: ${AUTO_COMMIT:-未设置}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        else
+            echo "⚠️  无法加载配置文件或配置文件格式错误"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        fi
+
+        echo ""
+        echo "📝 配置编辑选项:"
+        echo ""
+        echo "  基本配置:"
+        echo "    1) 编辑GitHub凭据        [g]"
+        echo "    2) 编辑同步路径          [p]"
+        echo "    3) 编辑监控设置          [m]"
+        echo ""
+        echo "  高级配置:"
+        echo "    4) 编辑文件过滤规则      [f]"
+        echo "    5) 编辑提交设置          [t]"
+        echo "    6) 编辑网络设置          [n]"
+        echo ""
+        echo "  配置管理:"
+        echo "    7) 查看完整配置文件      [v]"
+        echo "    8) 重置为默认配置        [r]"
+        echo "    9) 使用文本编辑器        [e]"
+        echo "   10) 运行配置向导          [w]"
+        echo ""
+        echo "   11) 测试配置             [s]"
+        echo "   12) 保存并退出           [q]"
+        echo ""
+        echo -n "请选择操作 [1-12] 或快捷键: "
+
+        read -r edit_choice
+
+        case "$edit_choice" in
+            1|g|G)
+                edit_github_section
+                ;;
+            2|p|P)
+                edit_sync_paths_section
+                ;;
+            3|m|M)
+                edit_monitoring_section
+                ;;
+            4|f|F)
+                edit_filter_section
+                ;;
+            5|t|T)
+                edit_commit_section
+                ;;
+            6|n|N)
+                edit_network_section
+                ;;
+            7|v|V)
+                show_full_config
+                ;;
+            8|r|R)
+                reset_to_default_config
+                ;;
+            9|e|E)
+                edit_with_text_editor
+                ;;
+            10|w|W)
+                run_setup_wizard
+                return $?
+                ;;
+            11|s|S)
+                test_current_config
+                ;;
+            12|q|Q)
+                echo ""
+                log_info "配置编辑完成"
+                return 0
+                ;;
+            "")
+                # 刷新菜单
+                continue
+                ;;
+            *)
+                echo ""
+                log_error "无效选项: $edit_choice"
+                echo "按任意键继续..."
+                read -r
+                ;;
+        esac
+    done
+}
+
+# 编辑GitHub凭据部分
+edit_github_section() {
+    echo ""
+    echo "🔑 编辑GitHub凭据"
+    echo "=================="
+    echo ""
+
+    # 显示当前设置
+    if [ -n "$GITHUB_USERNAME" ]; then
+        echo "当前GitHub用户名: $GITHUB_USERNAME"
+    else
+        echo "当前GitHub用户名: 未设置"
+    fi
+
+    if [ -n "$GITHUB_TOKEN" ]; then
+        echo "当前GitHub令牌: ${GITHUB_TOKEN:0:10}... (已隐藏)"
+    else
+        echo "当前GitHub令牌: 未设置"
+    fi
+
+    echo ""
+    echo "1) 修改GitHub用户名"
+    echo "2) 修改GitHub令牌"
+    echo "3) 同时修改用户名和令牌"
+    echo "4) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-4]: "
+    read -r github_choice
+
+    case "$github_choice" in
+        1)
+            echo ""
+            echo -n "新的GitHub用户名: "
+            read -r new_username
+            if [ -n "$new_username" ]; then
+                update_config_value "GITHUB_USERNAME" "$new_username"
+                log_info "GitHub用户名已更新"
+            fi
+            ;;
+        2)
+            echo ""
+            echo -n "新的GitHub令牌: "
+            read -r new_token
+            if [ -n "$new_token" ]; then
+                update_config_value "GITHUB_TOKEN" "$new_token"
+                log_info "GitHub令牌已更新"
+            fi
+            ;;
+        3)
+            get_github_credentials
+            update_config_value "GITHUB_USERNAME" "$github_username"
+            update_config_value "GITHUB_TOKEN" "$github_token"
+            log_info "GitHub凭据已更新"
+            ;;
+        *)
             return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 编辑同步路径部分
+edit_sync_paths_section() {
+    echo ""
+    echo "📁 编辑同步路径"
+    echo "==============="
+    echo ""
+
+    # 显示当前同步路径
+    if [ -n "$SYNC_PATHS" ]; then
+        echo "当前同步路径:"
+        local count=1
+        echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
+            if [ -n "$local_path" ]; then
+                echo "  $count) $local_path → $repo:$branch/$target_path"
+                count=$((count + 1))
+            fi
+        done
+    else
+        echo "当前同步路径: 未配置"
+    fi
+
+    echo ""
+    echo "1) 添加新的同步路径"
+    echo "2) 删除现有同步路径"
+    echo "3) 修改现有同步路径"
+    echo "4) 清空所有同步路径"
+    echo "5) 重新配置所有路径"
+    echo "6) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-6]: "
+    read -r path_choice
+
+    case "$path_choice" in
+        1)
+            add_sync_path
+            ;;
+        2)
+            remove_sync_path
+            ;;
+        3)
+            modify_sync_path
+            ;;
+        4)
+            echo ""
+            echo -n "确认清空所有同步路径？[y/N]: "
+            read -r confirm
+            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+                update_config_value "SYNC_PATHS" ""
+                log_info "已清空所有同步路径"
+            fi
+            ;;
+        5)
+            get_detailed_sync_paths
+            update_config_value "SYNC_PATHS" "$sync_paths"
+            log_info "同步路径已重新配置"
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 编辑监控设置部分
+edit_monitoring_section() {
+    echo ""
+    echo "⏱️  编辑监控设置"
+    echo "==============="
+    echo ""
+
+    echo "当前监控设置:"
+    echo "  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
+    echo "  日志级别: ${LOG_LEVEL:-未设置}"
+    echo ""
+
+    echo "1) 修改轮询间隔"
+    echo "2) 修改日志级别"
+    echo "3) 同时修改两项设置"
+    echo "4) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-4]: "
+    read -r monitor_choice
+
+    case "$monitor_choice" in
+        1)
+            echo ""
+            echo "轮询间隔建议:"
+            echo "  10秒 - 高频监控（开发环境）"
+            echo "  30秒 - 标准监控（推荐）"
+            echo "  60秒 - 低频监控（生产环境）"
+            echo ""
+            echo -n "新的轮询间隔（秒）: "
+            read -r new_interval
+            if echo "$new_interval" | grep -qE '^[0-9]+$' && [ "$new_interval" -ge 5 ]; then
+                update_config_value "POLL_INTERVAL" "$new_interval"
+                log_info "轮询间隔已更新为 ${new_interval}秒"
+            else
+                log_error "无效的轮询间隔"
+            fi
+            ;;
+        2)
+            echo ""
+            echo "日志级别选择:"
+            echo "1) DEBUG - 详细调试信息"
+            echo "2) INFO  - 一般信息（推荐）"
+            echo "3) WARN  - 仅警告和错误"
+            echo "4) ERROR - 仅错误信息"
+            echo ""
+            echo -n "请选择 [1-4]: "
+            read -r log_choice
+
+            case "$log_choice" in
+                1) new_log_level="DEBUG" ;;
+                2) new_log_level="INFO" ;;
+                3) new_log_level="WARN" ;;
+                4) new_log_level="ERROR" ;;
+                *) new_log_level="" ;;
+            esac
+
+            if [ -n "$new_log_level" ]; then
+                update_config_value "LOG_LEVEL" "$new_log_level"
+                log_info "日志级别已更新为 $new_log_level"
+            fi
+            ;;
+        3)
+            get_monitoring_settings
+            update_config_value "POLL_INTERVAL" "$poll_interval"
+            update_config_value "LOG_LEVEL" "$log_level"
+            log_info "监控设置已更新"
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 更新配置文件中的值
+update_config_value() {
+    local key="$1"
+    local value="$2"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        log_error "配置文件不存在"
+        return 1
+    fi
+
+    # 创建临时文件
+    local temp_file="${CONFIG_FILE}.tmp"
+
+    # 检查键是否存在
+    if grep -q "^${key}=" "$CONFIG_FILE"; then
+        # 更新现有值
+        sed "s|^${key}=.*|${key}=\"${value}\"|" "$CONFIG_FILE" > "$temp_file"
+    else
+        # 添加新值
+        cp "$CONFIG_FILE" "$temp_file"
+        echo "${key}=\"${value}\"" >> "$temp_file"
+    fi
+
+    # 替换原文件
+    mv "$temp_file" "$CONFIG_FILE"
+}
+
+# 添加同步路径
+add_sync_path() {
+    echo ""
+    echo "➕ 添加新的同步路径"
+    echo "==================="
+    echo ""
+
+    echo -n "本地路径: "
+    read -r local_path
+
+    if [ -z "$local_path" ]; then
+        log_error "本地路径不能为空"
+        return 1
+    fi
+
+    if [ ! -e "$local_path" ]; then
+        echo "⚠️  路径不存在: $local_path"
+        echo -n "是否继续添加？[y/N]: "
+        read -r continue_add
+        if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
+            return 0
+        fi
+    fi
+
+    echo -n "GitHub仓库 (格式: 用户名/仓库名): "
+    read -r repo
+
+    if [ -z "$repo" ]; then
+        log_error "GitHub仓库不能为空"
+        return 1
+    fi
+
+    echo -n "分支 (默认main): "
+    read -r branch
+    branch=${branch:-main}
+
+    echo -n "目标路径 (可留空): "
+    read -r target_path
+
+    # 构建新的同步路径条目
+    local new_path="$local_path|$repo|$branch|$target_path"
+
+    # 添加到现有路径
+    if [ -n "$SYNC_PATHS" ]; then
+        local updated_paths="$SYNC_PATHS
+$new_path"
+    else
+        local updated_paths="$new_path"
+    fi
+
+    update_config_value "SYNC_PATHS" "$updated_paths"
+    log_info "已添加同步路径: $local_path → $repo:$branch/$target_path"
+}
+
+# 删除同步路径
+remove_sync_path() {
+    echo ""
+    echo "➖ 删除同步路径"
+    echo "==============="
+    echo ""
+
+    if [ -z "$SYNC_PATHS" ]; then
+        log_warn "没有配置的同步路径"
+        return 0
+    fi
+
+    echo "当前同步路径:"
+    local count=1
+    local paths_array=""
+
+    echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
+        if [ -n "$local_path" ]; then
+            echo "  $count) $local_path → $repo:$branch/$target_path"
+            paths_array="$paths_array|$local_path|$repo|$branch|$target_path"
+            count=$((count + 1))
         fi
     done
 
-    log_error "未找到可用的编辑器，请手动编辑: $CONFIG_FILE"
-    return 1
+    echo ""
+    echo -n "请输入要删除的路径编号 (0取消): "
+    read -r delete_num
+
+    if [ "$delete_num" = "0" ] || [ -z "$delete_num" ]; then
+        return 0
+    fi
+
+    # 这里需要实现删除逻辑，由于shell限制，简化处理
+    echo ""
+    echo -n "确认删除第 $delete_num 个同步路径？[y/N]: "
+    read -r confirm
+
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+        log_info "请使用配置向导重新配置同步路径"
+        echo "建议使用选项5 '重新配置所有路径' 来管理同步路径"
+    fi
+}
+
+# 修改同步路径
+modify_sync_path() {
+    echo ""
+    echo "✏️  修改同步路径"
+    echo "==============="
+    echo ""
+
+    log_info "建议使用 '重新配置所有路径' 选项来修改同步路径"
+    echo "这样可以确保配置的准确性和完整性"
+    echo ""
+    echo -n "是否现在重新配置所有路径？[Y/n]: "
+    read -r reconfig
+
+    if [ "$reconfig" != "n" ] && [ "$reconfig" != "N" ]; then
+        get_detailed_sync_paths
+        update_config_value "SYNC_PATHS" "$sync_paths"
+        log_info "同步路径已重新配置"
+    fi
+}
+
+# 编辑文件过滤规则
+edit_filter_section() {
+    echo ""
+    echo "🔍 编辑文件过滤规则"
+    echo "==================="
+    echo ""
+
+    echo "当前排除模式:"
+    echo "  ${EXCLUDE_PATTERNS:-未设置}"
+    echo ""
+
+    echo "1) 使用预设过滤规则"
+    echo "2) 自定义过滤规则"
+    echo "3) 添加额外过滤规则"
+    echo "4) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-4]: "
+    read -r filter_choice
+
+    case "$filter_choice" in
+        1)
+            echo ""
+            echo "预设过滤规则:"
+            echo "1) 基础过滤 - *.tmp *.log *.pid *.lock .git"
+            echo "2) 开发环境 - 基础 + *.swp *~ .DS_Store *.pyc __pycache__"
+            echo "3) 生产环境 - 基础 + *.backup *.cache *.orig"
+            echo "4) OpenWrt - 基础 + .uci-* *.orig"
+            echo ""
+            echo -n "请选择预设 [1-4]: "
+            read -r preset_choice
+
+            case "$preset_choice" in
+                1) new_patterns="*.tmp *.log *.pid *.lock .git" ;;
+                2) new_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store *.pyc __pycache__" ;;
+                3) new_patterns="*.tmp *.log *.pid *.lock .git *.backup *.cache *.orig" ;;
+                4) new_patterns="*.tmp *.log *.pid *.lock .git .uci-* *.orig" ;;
+                *) new_patterns="" ;;
+            esac
+
+            if [ -n "$new_patterns" ]; then
+                update_config_value "EXCLUDE_PATTERNS" "$new_patterns"
+                log_info "过滤规则已更新"
+            fi
+            ;;
+        2)
+            echo ""
+            echo -n "自定义过滤规则 (用空格分隔): "
+            read -r custom_patterns
+            if [ -n "$custom_patterns" ]; then
+                update_config_value "EXCLUDE_PATTERNS" "$custom_patterns"
+                log_info "过滤规则已更新"
+            fi
+            ;;
+        3)
+            echo ""
+            echo -n "额外过滤规则 (用空格分隔): "
+            read -r extra_patterns
+            if [ -n "$extra_patterns" ]; then
+                local combined_patterns="$EXCLUDE_PATTERNS $extra_patterns"
+                update_config_value "EXCLUDE_PATTERNS" "$combined_patterns"
+                log_info "过滤规则已更新"
+            fi
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 编辑提交设置
+edit_commit_section() {
+    echo ""
+    echo "📝 编辑提交设置"
+    echo "==============="
+    echo ""
+
+    echo "当前提交设置:"
+    echo "  自动提交: ${AUTO_COMMIT:-未设置}"
+    echo "  提交消息模板: ${COMMIT_MESSAGE_TEMPLATE:-未设置}"
+    echo ""
+
+    echo "1) 修改自动提交设置"
+    echo "2) 修改提交消息模板"
+    echo "3) 同时修改两项设置"
+    echo "4) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-4]: "
+    read -r commit_choice
+
+    case "$commit_choice" in
+        1)
+            echo ""
+            echo -n "启用自动提交？[Y/n]: "
+            read -r auto_choice
+            if [ "$auto_choice" = "n" ] || [ "$auto_choice" = "N" ]; then
+                update_config_value "AUTO_COMMIT" "false"
+                log_info "自动提交已禁用"
+            else
+                update_config_value "AUTO_COMMIT" "true"
+                log_info "自动提交已启用"
+            fi
+            ;;
+        2)
+            echo ""
+            echo "提交消息模板变量:"
+            echo "  %s - 文件相对路径"
+            echo "  \$(hostname) - 主机名"
+            echo "  \$(date) - 当前日期"
+            echo ""
+            echo -n "新的提交消息模板: "
+            read -r new_template
+            if [ -n "$new_template" ]; then
+                update_config_value "COMMIT_MESSAGE_TEMPLATE" "$new_template"
+                log_info "提交消息模板已更新"
+            fi
+            ;;
+        3)
+            get_basic_advanced_options
+            update_config_value "AUTO_COMMIT" "$auto_commit"
+            update_config_value "COMMIT_MESSAGE_TEMPLATE" "$commit_template"
+            log_info "提交设置已更新"
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 编辑网络设置
+edit_network_section() {
+    echo ""
+    echo "🌐 编辑网络设置"
+    echo "==============="
+    echo ""
+
+    echo "当前网络设置:"
+    echo "  HTTP超时: ${HTTP_TIMEOUT:-未设置}秒"
+    echo "  SSL验证: ${VERIFY_SSL:-未设置}"
+    echo "  最大重试: ${MAX_RETRIES:-未设置}次"
+    echo "  重试间隔: ${RETRY_INTERVAL:-未设置}秒"
+    echo ""
+
+    echo "1) 修改HTTP超时时间"
+    echo "2) 修改SSL验证设置"
+    echo "3) 修改重试设置"
+    echo "4) 配置代理设置"
+    echo "5) 重新配置所有网络设置"
+    echo "6) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-6]: "
+    read -r network_choice
+
+    case "$network_choice" in
+        1)
+            echo ""
+            echo -n "HTTP超时时间（秒，默认30）: "
+            read -r timeout
+            timeout=${timeout:-30}
+            if echo "$timeout" | grep -qE '^[0-9]+$'; then
+                update_config_value "HTTP_TIMEOUT" "$timeout"
+                log_info "HTTP超时时间已更新为 ${timeout}秒"
+            fi
+            ;;
+        2)
+            echo ""
+            echo -n "启用SSL证书验证？[Y/n]: "
+            read -r ssl_choice
+            if [ "$ssl_choice" = "n" ] || [ "$ssl_choice" = "N" ]; then
+                update_config_value "VERIFY_SSL" "false"
+                log_info "SSL验证已禁用"
+            else
+                update_config_value "VERIFY_SSL" "true"
+                log_info "SSL验证已启用"
+            fi
+            ;;
+        3)
+            echo ""
+            echo -n "最大重试次数（默认3）: "
+            read -r retries
+            retries=${retries:-3}
+            echo -n "重试间隔（秒，默认5）: "
+            read -r interval
+            interval=${interval:-5}
+
+            update_config_value "MAX_RETRIES" "$retries"
+            update_config_value "RETRY_INTERVAL" "$interval"
+            log_info "重试设置已更新"
+            ;;
+        4)
+            echo ""
+            echo -n "是否配置HTTP代理？[y/N]: "
+            read -r use_proxy
+            if [ "$use_proxy" = "y" ] || [ "$use_proxy" = "Y" ]; then
+                echo -n "HTTP代理地址: "
+                read -r proxy_addr
+                if [ -n "$proxy_addr" ]; then
+                    update_config_value "HTTP_PROXY" "$proxy_addr"
+                    update_config_value "HTTPS_PROXY" "$proxy_addr"
+                    log_info "代理设置已更新"
+                fi
+            else
+                # 删除代理设置
+                sed -i '/^HTTP_PROXY=/d' "$CONFIG_FILE" 2>/dev/null || true
+                sed -i '/^HTTPS_PROXY=/d' "$CONFIG_FILE" 2>/dev/null || true
+                log_info "代理设置已清除"
+            fi
+            ;;
+        5)
+            get_network_settings
+            update_config_value "HTTP_TIMEOUT" "$http_timeout"
+            update_config_value "VERIFY_SSL" "$verify_ssl"
+            update_config_value "MAX_RETRIES" "$max_retries"
+            update_config_value "RETRY_INTERVAL" "$retry_interval"
+            if [ -n "$http_proxy" ]; then
+                update_config_value "HTTP_PROXY" "$http_proxy"
+                update_config_value "HTTPS_PROXY" "$https_proxy"
+            fi
+            log_info "网络设置已更新"
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 显示完整配置文件
+show_full_config() {
+    echo ""
+    echo "📄 完整配置文件内容"
+    echo "==================="
+    echo ""
+
+    if [ -f "$CONFIG_FILE" ]; then
+        cat "$CONFIG_FILE"
+    else
+        log_error "配置文件不存在"
+    fi
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 重置为默认配置
+reset_to_default_config() {
+    echo ""
+    echo "🔄 重置为默认配置"
+    echo "=================="
+    echo ""
+
+    echo "⚠️  警告: 这将删除所有当前配置并创建默认配置文件"
+    echo ""
+    echo -n "确认重置配置？[y/N]: "
+    read -r confirm_reset
+
+    if [ "$confirm_reset" = "y" ] || [ "$confirm_reset" = "Y" ]; then
+        # 备份当前配置
+        if [ -f "$CONFIG_FILE" ]; then
+            local backup_file="${CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+            cp "$CONFIG_FILE" "$backup_file"
+            log_info "当前配置已备份到: $backup_file"
+        fi
+
+        # 创建默认配置
+        create_default_config
+        log_info "已重置为默认配置"
+
+        echo ""
+        echo "建议运行配置向导来设置基本参数"
+        echo -n "是否现在运行配置向导？[Y/n]: "
+        read -r run_wizard
+
+        if [ "$run_wizard" != "n" ] && [ "$run_wizard" != "N" ]; then
+            run_setup_wizard
+        fi
+    else
+        log_info "取消重置操作"
+    fi
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 使用文本编辑器
+edit_with_text_editor() {
+    echo ""
+    echo "📝 使用文本编辑器"
+    echo "=================="
+    echo ""
+
+    echo "⚠️  注意: 直接编辑配置文件可能导致格式错误"
+    echo "建议使用交互式编辑功能来修改配置"
+    echo ""
+    echo -n "确认使用文本编辑器？[y/N]: "
+    read -r confirm_editor
+
+    if [ "$confirm_editor" = "y" ] || [ "$confirm_editor" = "Y" ]; then
+        # 尝试使用可用的编辑器
+        for editor in vi nano; do
+            if command -v "$editor" >/dev/null 2>&1; then
+                "$editor" "$CONFIG_FILE"
+                log_info "配置文件编辑完成"
+                return 0
+            fi
+        done
+
+        log_error "未找到可用的文本编辑器"
+        echo "可用编辑器: vi, nano"
+        echo "配置文件路径: $CONFIG_FILE"
+    fi
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 测试当前配置
+test_current_config() {
+    echo ""
+    echo "🔍 测试当前配置"
+    echo "==============="
+    echo ""
+
+    if test_config; then
+        echo ""
+        log_info "✅ 配置测试通过"
+    else
+        echo ""
+        log_error "❌ 配置测试失败"
+        echo ""
+        echo "常见问题:"
+        echo "• 检查GitHub用户名和令牌是否正确"
+        echo "• 确认网络连接正常"
+        echo "• 验证同步路径是否存在"
+    fi
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
 }
 
 # 显示日志
@@ -728,6 +1850,203 @@ show_logs() {
     else
         log_warn "日志文件不存在: $LOG_FILE"
     fi
+}
+
+# 清理日志文件
+cleanup_logs() {
+    echo "日志清理工具"
+    echo "============"
+    echo ""
+
+    local log_dir=$(dirname "$LOG_FILE")
+    local log_basename=$(basename "$LOG_FILE")
+
+    # 显示当前日志文件状态
+    echo "当前日志文件状态:"
+    echo "  主日志文件: $LOG_FILE"
+    if [ -f "$LOG_FILE" ]; then
+        local size=$(get_file_size "$LOG_FILE")
+        echo "    大小: $size bytes ($(echo "scale=2; $size/1024/1024" | bc 2>/dev/null || echo "N/A") MB)"
+        local age=$(get_file_age_days "$LOG_FILE")
+        echo "    年龄: $age 天"
+    else
+        echo "    状态: 不存在"
+    fi
+
+    echo ""
+    echo "历史日志文件:"
+    local old_logs=$(find "$log_dir" -name "${log_basename}.*" -type f 2>/dev/null | sort)
+    if [ -n "$old_logs" ]; then
+        echo "$old_logs" | while read -r old_log; do
+            local size=$(get_file_size "$old_log")
+            local age=$(get_file_age_days "$old_log")
+            echo "  $old_log (大小: $size bytes, 年龄: $age 天)"
+        done
+    else
+        echo "  无历史日志文件"
+    fi
+
+    echo ""
+    echo "清理选项:"
+    echo "1) 清理超过 ${LOG_KEEP_DAYS:-$DEFAULT_LOG_KEEP_DAYS} 天的日志文件"
+    echo "2) 清理所有历史日志文件"
+    echo "3) 轮转当前日志文件"
+    echo "4) 查看日志配置"
+    echo "5) 返回"
+    echo ""
+    echo -n "请选择 [1-5]: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            echo ""
+            echo "清理过期日志文件..."
+            cleanup_old_logs
+            echo "清理完成"
+            ;;
+        2)
+            echo ""
+            echo -n "确认清理所有历史日志文件？[y/N]: "
+            read -r confirm
+            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+                find "$log_dir" -name "${log_basename}.*" -type f -delete
+                echo "所有历史日志文件已清理"
+            else
+                echo "操作已取消"
+            fi
+            ;;
+        3)
+            echo ""
+            echo "轮转当前日志文件..."
+            rotate_log
+            echo "日志文件已轮转"
+            ;;
+        4)
+            echo ""
+            echo "日志配置:"
+            echo "  最大文件大小: ${LOG_MAX_SIZE:-$DEFAULT_MAX_LOG_SIZE} bytes"
+            echo "  保留天数: ${LOG_KEEP_DAYS:-$DEFAULT_LOG_KEEP_DAYS} 天"
+            echo "  最大文件数: ${LOG_MAX_FILES:-$DEFAULT_LOG_MAX_FILES} 个"
+            echo "  当前日志级别: ${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}"
+            ;;
+        5|*)
+            return 0
+            ;;
+    esac
+
+    echo ""
+    echo "按任意键继续..."
+    read -r
+}
+
+# 列出所有实例
+list_instances() {
+    echo "GitHub同步工具实例列表:"
+    echo "========================"
+    echo ""
+
+    local found_instances=0
+
+    # 查找所有配置文件
+    for config_file in "${SCRIPT_DIR}"/github-sync-*.conf; do
+        if [ -f "$config_file" ]; then
+            local instance_name=$(basename "$config_file" | sed 's/github-sync-//' | sed 's/.conf$//')
+            local pid_file="${SCRIPT_DIR}/github-sync-${instance_name}.pid"
+            local log_file="${SCRIPT_DIR}/github-sync-${instance_name}.log"
+
+            found_instances=$((found_instances + 1))
+
+            echo "实例: $instance_name"
+            echo "  配置文件: $config_file"
+            echo "  日志文件: $log_file"
+
+            # 检查运行状态
+            if [ -f "$pid_file" ]; then
+                local pid=$(cat "$pid_file")
+                if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+                    echo "  状态: 运行中 (PID: $pid)"
+                else
+                    echo "  状态: 已停止"
+                fi
+            else
+                echo "  状态: 已停止"
+            fi
+
+            # 显示同步路径数量
+            if [ -f "$config_file" ]; then
+                local sync_paths=$(grep "SYNC_PATHS" "$config_file" | cut -d'"' -f2)
+                if [ -n "$sync_paths" ]; then
+                    local path_count=$(echo "$sync_paths" | grep -c "|" 2>/dev/null || echo "0")
+                    echo "  同步路径: $path_count 个"
+                else
+                    echo "  同步路径: 未配置"
+                fi
+            fi
+
+            echo ""
+        fi
+    done
+
+    if [ $found_instances -eq 0 ]; then
+        echo "未找到任何实例配置文件"
+        echo ""
+        echo "使用以下命令创建新实例:"
+        echo "  $0 -i <实例名> config"
+    else
+        echo "总计: $found_instances 个实例"
+    fi
+}
+
+# 解析命令行参数
+parse_arguments() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -i|--instance)
+                if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+                    INSTANCE_NAME="$2"
+                    # 重新设置文件路径
+                    CONFIG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.conf"
+                    LOG_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.log"
+                    PID_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.pid"
+                    LOCK_FILE="${SCRIPT_DIR}/github-sync-${INSTANCE_NAME}.lock"
+                    shift 2
+                else
+                    log_error "选项 -i/--instance 需要指定实例名"
+                    exit 1
+                fi
+                ;;
+            -c|--config)
+                if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+                    CONFIG_FILE="$2"
+                    shift 2
+                else
+                    log_error "选项 -c/--config 需要指定配置文件路径"
+                    exit 1
+                fi
+                ;;
+            -v|--verbose)
+                LOG_LEVEL="DEBUG"
+                shift
+                ;;
+            -q|--quiet)
+                LOG_LEVEL="ERROR"
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -*)
+                log_error "未知选项: $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                # 非选项参数，结束解析
+                break
+                ;;
+        esac
+    done
 }
 
 # 执行一次性同步
@@ -2207,20 +3526,19 @@ EOF
 #==============================================================================
 
 main() {
-    # 解析命令行参数
+    # 解析命令行参数（选项）
+    parse_arguments "$@"
+
+    # 重新获取剩余参数
     while [ $# -gt 0 ]; do
         case "$1" in
-            -c|--config)
-                CONFIG_FILE="$2"
-                shift 2
-                ;;
-            -v|--verbose)
-                LOG_LEVEL="DEBUG"
-                shift
-                ;;
-            -q|--quiet)
-                LOG_LEVEL="ERROR"
-                shift
+            -i|--instance|-c|--config|-v|--verbose|-q|--quiet)
+                # 这些选项已经在parse_arguments中处理了
+                if [ "$1" = "-i" ] || [ "$1" = "--instance" ] || [ "$1" = "-c" ] || [ "$1" = "--config" ]; then
+                    shift 2  # 跳过选项和值
+                else
+                    shift    # 跳过标志选项
+                fi
                 ;;
             -h|--help)
                 show_help
@@ -2244,7 +3562,12 @@ main() {
                 ;;
             daemon)
                 # 内部使用，直接运行监控循环
-                load_config && monitor_loop
+                export DAEMON_MODE=true
+                export GITHUB_SYNC_QUIET=true
+                # 重定向所有输出到日志文件
+                {
+                    load_config && monitor_loop
+                } >> "$LOG_FILE" 2>&1
                 exit $?
                 ;;
             sync)
@@ -2265,6 +3588,14 @@ main() {
                 ;;
             logs)
                 show_logs
+                exit $?
+                ;;
+            cleanup)
+                cleanup_logs
+                exit $?
+                ;;
+            list)
+                list_instances
                 exit $?
                 ;;
             help)
