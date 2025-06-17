@@ -130,6 +130,95 @@ escape_json_string() {
     echo "$1" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g'
 }
 
+# 标准化路径格式
+# 功能: 清理和标准化文件路径
+# 参数: $1 - 原始路径
+# 返回: 标准化后的路径
+normalize_path() {
+    local path="$1"
+
+    # 移除前后空格
+    path=$(echo "$path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    # 展开波浪号
+    case "$path" in
+        "~"*) path="$HOME${path#~}" ;;
+    esac
+
+    # 移除多余的斜杠
+    path=$(echo "$path" | sed 's|//*|/|g')
+
+    # 移除末尾的斜杠（除非是根目录）
+    case "$path" in
+        "/") ;;
+        */) path="${path%/}" ;;
+    esac
+
+    echo "$path"
+}
+
+# 验证GitHub仓库名格式
+# 功能: 验证GitHub仓库名是否符合规范
+# 参数: $1 - 仓库名
+# 返回: 0-有效, 1-无效
+validate_repo_name() {
+    local repo="$1"
+
+    # 检查基本格式
+    if ! echo "$repo" | grep -qE '^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$'; then
+        return 1
+    fi
+
+    # 检查长度限制
+    local username=$(echo "$repo" | cut -d'/' -f1)
+    local reponame=$(echo "$repo" | cut -d'/' -f2)
+
+    if [ ${#username} -gt 39 ] || [ ${#reponame} -gt 100 ]; then
+        return 1
+    fi
+
+    # 检查是否以点或连字符开头/结尾
+    case "$username" in
+        .*|*.|_*|*_|-*|*-) return 1 ;;
+    esac
+
+    case "$reponame" in
+        .*|*.|_*|*_|-*|*-) return 1 ;;
+    esac
+
+    return 0
+}
+
+# 验证分支名格式
+# 功能: 验证Git分支名是否符合规范
+# 参数: $1 - 分支名
+# 返回: 0-有效, 1-无效
+validate_branch_name() {
+    local branch="$1"
+
+    # 检查基本字符
+    if ! echo "$branch" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+        return 1
+    fi
+
+    # 检查长度
+    if [ ${#branch} -gt 250 ]; then
+        return 1
+    fi
+
+    # 检查不能以斜杠开头或结尾
+    case "$branch" in
+        /*|*/) return 1 ;;
+    esac
+
+    # 检查不能包含连续斜杠
+    if echo "$branch" | grep -q '//'; then
+        return 1
+    fi
+
+    return 0
+}
+
 #==============================================================================
 # 日志和输出函数
 #==============================================================================
@@ -583,50 +672,96 @@ validate_config() {
 # 验证同步路径配置
 # 功能: 验证同步路径配置的格式和有效性
 # 参数: 无
-# 返回: 0-成功, 1-失败
+# 返回: 0-成功, 非零-失败
 validate_sync_paths() {
     local path_errors=0
     local line_num=0
+    local temp_file=$(create_temp_file "validate_paths")
 
+    # 将错误信息写入临时文件，避免子shell问题
     echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
         line_num=$((line_num + 1))
 
         # 跳过空行
         [ -z "$local_path" ] && continue
 
+        # 清理路径（移除前后空格）
+        local_path=$(echo "$local_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        repo=$(echo "$repo" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        branch=$(echo "$branch" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        target_path=$(echo "$target_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
         # 验证本地路径
-        if [ ! -e "$local_path" ]; then
-            log_error "同步路径 $line_num: 本地路径不存在: $local_path"
-            path_errors=$((path_errors + 1))
+        if [ -z "$local_path" ]; then
+            echo "ERROR:同步路径 $line_num: 本地路径为空" >> "$temp_file"
+        elif [ ! -e "$local_path" ]; then
+            echo "ERROR:同步路径 $line_num: 本地路径不存在: $local_path" >> "$temp_file"
+            echo "SUGGESTION:请检查路径是否正确，或创建该路径" >> "$temp_file"
         elif [ -f "$local_path" ]; then
             if [ ! -r "$local_path" ]; then
-                log_error "同步路径 $line_num: 文件不可读: $local_path"
-                path_errors=$((path_errors + 1))
+                echo "ERROR:同步路径 $line_num: 文件不可读: $local_path" >> "$temp_file"
+                echo "SUGGESTION:请检查文件权限: chmod +r '$local_path'" >> "$temp_file"
             fi
         elif [ -d "$local_path" ]; then
             if [ ! -r "$local_path" ]; then
-                log_error "同步路径 $line_num: 目录不可读: $local_path"
-                path_errors=$((path_errors + 1))
+                echo "ERROR:同步路径 $line_num: 目录不可读: $local_path" >> "$temp_file"
+                echo "SUGGESTION:请检查目录权限: chmod +r '$local_path'" >> "$temp_file"
             fi
         fi
 
         # 验证仓库格式
         if [ -z "$repo" ]; then
-            log_error "同步路径 $line_num: GitHub仓库未指定"
-            path_errors=$((path_errors + 1))
-        elif ! echo "$repo" | grep -q '/'; then
-            log_error "同步路径 $line_num: GitHub仓库格式错误: $repo (应为 用户名/仓库名)"
-            path_errors=$((path_errors + 1))
+            echo "ERROR:同步路径 $line_num: GitHub仓库未指定" >> "$temp_file"
+            echo "SUGGESTION:格式应为: 用户名/仓库名" >> "$temp_file"
+        elif ! echo "$repo" | grep -qE '^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$'; then
+            echo "ERROR:同步路径 $line_num: GitHub仓库格式错误: $repo" >> "$temp_file"
+            echo "SUGGESTION:正确格式: 用户名/仓库名 (只能包含字母、数字、点、下划线、连字符)" >> "$temp_file"
         fi
 
-        # 验证分支
+        # 验证分支名
         if [ -z "$branch" ]; then
-            log_error "同步路径 $line_num: 分支未指定"
-            path_errors=$((path_errors + 1))
+            echo "ERROR:同步路径 $line_num: 分支未指定" >> "$temp_file"
+            echo "SUGGESTION:常用分支名: main, master, develop" >> "$temp_file"
+        elif ! echo "$branch" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "ERROR:同步路径 $line_num: 分支名格式错误: $branch" >> "$temp_file"
+            echo "SUGGESTION:分支名只能包含字母、数字、点、下划线、连字符、斜杠" >> "$temp_file"
+        fi
+
+        # 验证目标路径格式（如果不为空）
+        if [ -n "$target_path" ]; then
+            # 检查是否包含非法字符
+            if echo "$target_path" | grep -q '[<>:"|?*]'; then
+                echo "ERROR:同步路径 $line_num: 目标路径包含非法字符: $target_path" >> "$temp_file"
+                echo "SUGGESTION:避免使用 < > : \" | ? * 等字符" >> "$temp_file"
+            fi
+            # 检查是否以斜杠开头或结尾
+            if echo "$target_path" | grep -qE '^/|/$'; then
+                echo "WARNING:同步路径 $line_num: 目标路径不应以斜杠开头或结尾: $target_path" >> "$temp_file"
+                echo "SUGGESTION:使用相对路径，如: config/file.txt" >> "$temp_file"
+            fi
         fi
 
         log_debug "验证同步路径 $line_num: $local_path -> $repo:$branch/$target_path"
     done
+
+    # 处理验证结果
+    if [ -f "$temp_file" ]; then
+        while read -r line; do
+            case "$line" in
+                ERROR:*)
+                    log_error "${line#ERROR:}"
+                    path_errors=$((path_errors + 1))
+                    ;;
+                WARNING:*)
+                    log_warn "${line#WARNING:}"
+                    ;;
+                SUGGESTION:*)
+                    log_info "  💡 ${line#SUGGESTION:}"
+                    ;;
+            esac
+        done < "$temp_file"
+        rm -f "$temp_file"
+    fi
 
     return $path_errors
 }
@@ -2154,37 +2289,119 @@ add_sync_path() {
     echo "==================="
     echo ""
 
-    echo -n "本地路径: "
-    read -r local_path
+    # 获取本地路径
+    local local_path=""
+    while true; do
+        echo -n "本地路径: "
+        read -r local_path
 
-    if [ -z "$local_path" ]; then
-        log_error "本地路径不能为空"
-        return 1
-    fi
-
-    if [ ! -e "$local_path" ]; then
-        echo "[警告] 路径不存在: $local_path"
-        echo -n "是否继续添加？[y/N]: "
-        read -r continue_add
-        if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
-            return 0
+        if [ -z "$local_path" ]; then
+            log_error "本地路径不能为空"
+            continue
         fi
-    fi
 
-    echo -n "GitHub仓库 (格式: 用户名/仓库名): "
-    read -r repo
+        # 清理路径
+        local_path=$(echo "$local_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
-    if [ -z "$repo" ]; then
-        log_error "GitHub仓库不能为空"
-        return 1
-    fi
+        # 展开波浪号
+        case "$local_path" in
+            "~"*) local_path="$HOME${local_path#~}" ;;
+        esac
 
-    echo -n "分支 (默认main): "
-    read -r branch
-    branch=${branch:-main}
+        if [ ! -e "$local_path" ]; then
+            echo "[警告] 路径不存在: $local_path"
+            echo -n "是否继续添加？[y/N]: "
+            read -r continue_add
+            if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
+                continue
+            fi
+        elif [ ! -r "$local_path" ]; then
+            log_error "路径不可读: $local_path"
+            echo -n "是否继续添加？[y/N]: "
+            read -r continue_add
+            if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
+                continue
+            fi
+        fi
+        break
+    done
 
+    # 获取GitHub仓库
+    local repo=""
+    while true; do
+        echo -n "GitHub仓库 (格式: 用户名/仓库名): "
+        read -r repo
+
+        if [ -z "$repo" ]; then
+            log_error "GitHub仓库不能为空"
+            continue
+        fi
+
+        # 清理仓库名
+        repo=$(echo "$repo" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        # 验证仓库格式
+        if ! echo "$repo" | grep -qE '^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$'; then
+            log_error "GitHub仓库格式错误: $repo"
+            echo "正确格式: 用户名/仓库名 (只能包含字母、数字、点、下划线、连字符)"
+            continue
+        fi
+        break
+    done
+
+    # 获取分支名
+    local branch=""
+    while true; do
+        echo -n "分支 (默认main): "
+        read -r branch
+        branch=${branch:-main}
+
+        # 清理分支名
+        branch=$(echo "$branch" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        # 验证分支名格式
+        if ! echo "$branch" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            log_error "分支名格式错误: $branch"
+            echo "分支名只能包含字母、数字、点、下划线、连字符、斜杠"
+            continue
+        fi
+        break
+    done
+
+    # 获取目标路径
     echo -n "目标路径 (可留空): "
     read -r target_path
+
+    # 清理目标路径
+    target_path=$(echo "$target_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    # 验证目标路径格式（如果不为空）
+    if [ -n "$target_path" ]; then
+        if echo "$target_path" | grep -q '[<>:"|?*]'; then
+            log_warn "目标路径包含可能有问题的字符: $target_path"
+            echo -n "是否继续？[y/N]: "
+            read -r continue_target
+            if [ "$continue_target" != "y" ] && [ "$continue_target" != "Y" ]; then
+                return 0
+            fi
+        fi
+
+        # 清理路径格式
+        target_path=$(echo "$target_path" | sed 's|^/||' | sed 's|/$||' | sed 's|//*|/|g')
+    fi
+
+    # 检查是否已存在相同的路径配置
+    if [ -n "$SYNC_PATHS" ]; then
+        local existing_check=$(echo "$SYNC_PATHS" | grep "^$local_path|")
+        if [ -n "$existing_check" ]; then
+            log_warn "本地路径已存在于配置中: $local_path"
+            echo -n "是否继续添加？[y/N]: "
+            read -r continue_duplicate
+            if [ "$continue_duplicate" != "y" ] && [ "$continue_duplicate" != "Y" ]; then
+                return 0
+            fi
+        fi
+    fi
 
     # 构建新的同步路径条目
     local new_path="$local_path|$repo|$branch|$target_path"
@@ -2197,8 +2414,25 @@ $new_path"
         local updated_paths="$new_path"
     fi
 
+    # 更新配置并重新加载
     update_config_value "SYNC_PATHS" "$updated_paths"
-    log_info "已添加同步路径: $local_path → $repo:$branch/$target_path"
+    load_config
+
+    log_success "已添加同步路径: $local_path → $repo:$branch/$target_path"
+
+    # 询问是否测试新添加的路径
+    echo ""
+    echo -n "是否测试新添加的同步路径？[Y/n]: "
+    read -r test_new
+    if [ "$test_new" != "n" ] && [ "$test_new" != "N" ]; then
+        echo ""
+        echo "测试同步路径..."
+        if process_sync_path "$new_path"; then
+            log_success "同步路径测试成功"
+        else
+            log_error "同步路径测试失败，请检查配置"
+        fi
+    fi
 }
 
 # 删除同步路径
@@ -2213,35 +2447,89 @@ remove_sync_path() {
         return 0
     fi
 
+    # 显示当前同步路径并收集到数组
     echo "当前同步路径:"
     local count=1
-    local paths_array=""
+    local temp_file=$(create_temp_file "paths_list")
 
     echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
         if [ -n "$local_path" ]; then
             echo "  $count) $local_path → $repo:$branch/$target_path"
-            paths_array="$paths_array|$local_path|$repo|$branch|$target_path"
+            echo "$local_path|$repo|$branch|$target_path" >> "$temp_file"
             count=$((count + 1))
         fi
     done
 
-    echo ""
-    echo -n "请输入要删除的路径编号 (0取消): "
-    read -r delete_num
+    # 获取路径总数
+    local total_paths=$(wc -l < "$temp_file" 2>/dev/null || echo "0")
 
-    if [ "$delete_num" = "0" ] || [ -z "$delete_num" ]; then
+    if [ "$total_paths" -eq 0 ]; then
+        log_warn "没有有效的同步路径"
+        rm -f "$temp_file"
         return 0
     fi
 
-    # 这里需要实现删除逻辑，由于shell限制，简化处理
     echo ""
-    echo -n "确认删除第 $delete_num 个同步路径？[y/N]: "
+    echo -n "请输入要删除的路径编号 (1-$total_paths, 0取消): "
+    read -r delete_num
+
+    if [ "$delete_num" = "0" ] || [ -z "$delete_num" ]; then
+        rm -f "$temp_file"
+        return 0
+    fi
+
+    # 验证输入
+    if ! is_valid_number "$delete_num" || [ "$delete_num" -lt 1 ] || [ "$delete_num" -gt "$total_paths" ]; then
+        log_error "无效的路径编号: $delete_num"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    # 获取要删除的路径信息
+    local target_line=$(sed -n "${delete_num}p" "$temp_file")
+    local target_local_path=$(echo "$target_line" | cut -d'|' -f1)
+    local target_repo=$(echo "$target_line" | cut -d'|' -f2)
+    local target_branch=$(echo "$target_line" | cut -d'|' -f3)
+    local target_target_path=$(echo "$target_line" | cut -d'|' -f4)
+
+    echo ""
+    echo "要删除的同步路径:"
+    echo "  本地路径: $target_local_path"
+    echo "  GitHub仓库: $target_repo"
+    echo "  分支: $target_branch"
+    echo "  目标路径: $target_target_path"
+    echo ""
+    echo -n "确认删除此同步路径？[y/N]: "
     read -r confirm
 
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-        log_info "请使用配置向导重新配置同步路径"
-        echo "建议使用选项5 '重新配置所有路径' 来管理同步路径"
+        # 构建新的SYNC_PATHS（排除要删除的路径）
+        local new_sync_paths=""
+        local current_line=1
+
+        while read -r line; do
+            if [ "$current_line" -ne "$delete_num" ]; then
+                if [ -z "$new_sync_paths" ]; then
+                    new_sync_paths="$line"
+                else
+                    new_sync_paths="$new_sync_paths
+$line"
+                fi
+            fi
+            current_line=$((current_line + 1))
+        done < "$temp_file"
+
+        # 更新配置文件
+        update_config_value "SYNC_PATHS" "$new_sync_paths"
+        log_success "已删除同步路径: $target_local_path → $target_repo:$target_branch"
+
+        # 重新加载配置
+        load_config
+    else
+        log_info "取消删除操作"
     fi
+
+    rm -f "$temp_file"
 }
 
 # 修改同步路径
@@ -2251,17 +2539,152 @@ modify_sync_path() {
     echo "==============="
     echo ""
 
-    log_info "建议使用 '重新配置所有路径' 选项来修改同步路径"
-    echo "这样可以确保配置的准确性和完整性"
-    echo ""
-    echo -n "是否现在重新配置所有路径？[Y/n]: "
-    read -r reconfig
-
-    if [ "$reconfig" != "n" ] && [ "$reconfig" != "N" ]; then
-        get_detailed_sync_paths
-        update_config_value "SYNC_PATHS" "$sync_paths"
-        log_info "同步路径已重新配置"
+    if [ -z "$SYNC_PATHS" ]; then
+        log_warn "没有配置的同步路径"
+        return 0
     fi
+
+    # 显示当前同步路径
+    echo "当前同步路径:"
+    local count=1
+    local temp_file=$(create_temp_file "paths_modify")
+
+    echo "$SYNC_PATHS" | while IFS='|' read -r local_path repo branch target_path; do
+        if [ -n "$local_path" ]; then
+            echo "  $count) $local_path → $repo:$branch/$target_path"
+            echo "$local_path|$repo|$branch|$target_path" >> "$temp_file"
+            count=$((count + 1))
+        fi
+    done
+
+    # 获取路径总数
+    local total_paths=$(wc -l < "$temp_file" 2>/dev/null || echo "0")
+
+    if [ "$total_paths" -eq 0 ]; then
+        log_warn "没有有效的同步路径"
+        rm -f "$temp_file"
+        return 0
+    fi
+
+    echo ""
+    echo "选择操作:"
+    echo "1) 修改指定路径"
+    echo "2) 重新配置所有路径"
+    echo "3) 返回上级菜单"
+    echo ""
+    echo -n "请选择 [1-3]: "
+    read -r modify_choice
+
+    case "$modify_choice" in
+        1)
+            echo ""
+            echo -n "请输入要修改的路径编号 (1-$total_paths): "
+            read -r modify_num
+
+            if ! is_valid_number "$modify_num" || [ "$modify_num" -lt 1 ] || [ "$modify_num" -gt "$total_paths" ]; then
+                log_error "无效的路径编号: $modify_num"
+                rm -f "$temp_file"
+                return 1
+            fi
+
+            # 获取要修改的路径信息
+            local target_line=$(sed -n "${modify_num}p" "$temp_file")
+            local old_local_path=$(echo "$target_line" | cut -d'|' -f1)
+            local old_repo=$(echo "$target_line" | cut -d'|' -f2)
+            local old_branch=$(echo "$target_line" | cut -d'|' -f3)
+            local old_target_path=$(echo "$target_line" | cut -d'|' -f4)
+
+            echo ""
+            echo "当前配置:"
+            echo "  本地路径: $old_local_path"
+            echo "  GitHub仓库: $old_repo"
+            echo "  分支: $old_branch"
+            echo "  目标路径: $old_target_path"
+            echo ""
+
+            # 获取新配置
+            echo "输入新配置 (直接按回车保持原值):"
+
+            echo -n "本地路径 [$old_local_path]: "
+            read -r new_local_path
+            new_local_path=${new_local_path:-$old_local_path}
+            new_local_path=$(normalize_path "$new_local_path")
+
+            echo -n "GitHub仓库 [$old_repo]: "
+            read -r new_repo
+            new_repo=${new_repo:-$old_repo}
+
+            echo -n "分支 [$old_branch]: "
+            read -r new_branch
+            new_branch=${new_branch:-$old_branch}
+
+            echo -n "目标路径 [$old_target_path]: "
+            read -r new_target_path
+            new_target_path=${new_target_path:-$old_target_path}
+
+            # 验证新配置
+            if [ -n "$new_local_path" ] && [ ! -e "$new_local_path" ]; then
+                log_warn "新本地路径不存在: $new_local_path"
+                echo -n "是否继续？[y/N]: "
+                read -r continue_modify
+                if [ "$continue_modify" != "y" ] && [ "$continue_modify" != "Y" ]; then
+                    rm -f "$temp_file"
+                    return 0
+                fi
+            fi
+
+            if ! validate_repo_name "$new_repo"; then
+                log_error "GitHub仓库格式错误: $new_repo"
+                rm -f "$temp_file"
+                return 1
+            fi
+
+            if ! validate_branch_name "$new_branch"; then
+                log_error "分支名格式错误: $new_branch"
+                rm -f "$temp_file"
+                return 1
+            fi
+
+            # 构建新的SYNC_PATHS
+            local new_sync_paths=""
+            local current_line=1
+
+            while read -r line; do
+                if [ "$current_line" -eq "$modify_num" ]; then
+                    local new_line="$new_local_path|$new_repo|$new_branch|$new_target_path"
+                    if [ -z "$new_sync_paths" ]; then
+                        new_sync_paths="$new_line"
+                    else
+                        new_sync_paths="$new_sync_paths
+$new_line"
+                    fi
+                else
+                    if [ -z "$new_sync_paths" ]; then
+                        new_sync_paths="$line"
+                    else
+                        new_sync_paths="$new_sync_paths
+$line"
+                    fi
+                fi
+                current_line=$((current_line + 1))
+            done < "$temp_file"
+
+            # 更新配置文件
+            update_config_value "SYNC_PATHS" "$new_sync_paths"
+            load_config
+            log_success "同步路径已修改: $new_local_path → $new_repo:$new_branch"
+            ;;
+        2)
+            get_detailed_sync_paths
+            update_config_value "SYNC_PATHS" "$sync_paths"
+            load_config
+            log_success "同步路径已重新配置"
+            ;;
+        *)
+            ;;
+    esac
+
+    rm -f "$temp_file"
 }
 
 # 编辑文件过滤规则
