@@ -17,7 +17,7 @@
 
 ```bash
 # 一键安装（使用加速镜像，适合国内用户）
-bash <(curl -Ls https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/install.sh)
+curl -fsSL https://git.910626.xyz/https://raw.githubusercontent.com/rdone4425/github11/main/github-sync.sh -o /root/github-sync.sh && chmod +x /root/github-sync.sh && /root/github-sync.sh
 ```
 
 **安装过程**：

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # GitHub File Sync Tool for OpenWrt/Kwrt Systems
 # 专为OpenWrt/Kwrt系统设计的GitHub文件同步工具
