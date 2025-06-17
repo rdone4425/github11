@@ -2863,53 +2863,9 @@ test_config() {
 
 # 显示交互式菜单
 show_interactive_menu() {
-    # 检查是否首次运行
-    if [ ! -f "$CONFIG_FILE" ]; then
-        clear
-        echo "=================================="
-        echo "GitHub File Sync Tool"
-        echo "GitHub文件同步工具"
-        echo "=================================="
-        echo ""
-        log_info "检测到这是首次运行，未找到配置文件"
-        echo ""
-        echo "建议选择以下操作之一："
-        echo "1) 运行快速设置向导（推荐）"
-        echo "2) 手动编辑配置文件"
-        echo "3) 查看配置示例"
-        echo "4) 进入主菜单"
-        echo ""
-        echo -n "请选择 [1-4]: "
-        read -r first_choice
-
-        case "$first_choice" in
-            1)
-                clear
-                run_setup_wizard
-                echo ""
-                echo "按任意键进入主菜单..."
-                read -r
-                ;;
-            2)
-                clear
-                create_default_config
-                edit_config
-                echo ""
-                echo "按任意键进入主菜单..."
-                read -r
-                ;;
-            3)
-                clear
-                show_config_example
-                echo ""
-                echo "按任意键进入主菜单..."
-                read -r
-                ;;
-            *)
-                # 继续到主菜单
-                ;;
-        esac
-    fi
+    # 检查是否首次运行 - 简化逻辑，直接进入主菜单
+    # 如果没有配置文件，在主菜单中会显示"未配置"状态
+    # 用户可以通过菜单选项进行配置
 
     while true; do
         clear
@@ -2939,6 +2895,7 @@ show_interactive_menu() {
             fi
         else
             echo -e "${YELLOW}● 配置文件: 未配置${NC}"
+            echo -e "${BLUE}  提示: 选择选项 11 运行快速设置向导，或选择选项 5 手动编辑配置${NC}"
         fi
 
         # 显示最近日志
@@ -2957,6 +2914,16 @@ show_interactive_menu() {
         echo ""
         echo "请选择操作："
         echo ""
+
+        # 根据配置状态调整菜单显示
+        if [ ! -f "$CONFIG_FILE" ]; then
+            echo "  ${YELLOW}首次配置 (推荐):${NC}"
+            echo "   ${YELLOW}11) 快速设置向导        [w] ← 推荐首次使用${NC}"
+            echo "    5) 手动编辑配置文件    [c]"
+            echo "    7) 查看配置示例        [v]"
+            echo ""
+        fi
+
         echo "  服务管理:"
         echo "    1) 启动同步服务        [s]"
         echo "    2) 停止同步服务        [x]"
