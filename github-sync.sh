@@ -1033,29 +1033,29 @@ show_config_edit_menu() {
 
         # 加载并显示当前配置
         if load_config 2>/dev/null; then
-            echo "📋 当前配置摘要:"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "  🔑 GitHub用户: ${GITHUB_USERNAME:-未设置}"
-            echo "  ⏱️  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
-            echo "  📊 日志级别: ${LOG_LEVEL:-未设置}"
+            echo "[配置] 当前配置摘要:"
+            echo "=================================================================="
+            echo "  GitHub用户: ${GITHUB_USERNAME:-未设置}"
+            echo "  轮询间隔: ${POLL_INTERVAL:-未设置}秒"
+            echo "  日志级别: ${LOG_LEVEL:-未设置}"
 
             # 统计同步路径数量
             if [ -n "$SYNC_PATHS" ]; then
                 local path_count=$(echo "$SYNC_PATHS" | grep -c "|" 2>/dev/null || echo "0")
-                echo "  📁 同步路径: $path_count 个"
+                echo "  同步路径: $path_count 个"
             else
-                echo "  📁 同步路径: 未配置"
+                echo "  同步路径: 未配置"
             fi
 
-            echo "  🔧 自动提交: ${AUTO_COMMIT:-未设置}"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  自动提交: ${AUTO_COMMIT:-未设置}"
+            echo "=================================================================="
         else
-            echo "⚠️  无法加载配置文件或配置文件格式错误"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "[警告] 无法加载配置文件或配置文件格式错误"
+            echo "=================================================================="
         fi
 
         echo ""
-        echo "📝 配置编辑选项:"
+        echo "[编辑] 配置编辑选项:"
         echo ""
         echo "  基本配置:"
         echo "    1) 编辑GitHub凭据        [g]"
@@ -1137,7 +1137,7 @@ show_config_edit_menu() {
 # 编辑GitHub凭据部分
 edit_github_section() {
     echo ""
-    echo "🔑 编辑GitHub凭据"
+    echo "[GitHub] 编辑GitHub凭据"
     echo "=================="
     echo ""
 
@@ -1201,7 +1201,7 @@ edit_github_section() {
 # 编辑同步路径部分
 edit_sync_paths_section() {
     echo ""
-    echo "📁 编辑同步路径"
+    echo "[路径] 编辑同步路径"
     echo "==============="
     echo ""
 
@@ -1267,7 +1267,7 @@ edit_sync_paths_section() {
 # 编辑监控设置部分
 edit_monitoring_section() {
     echo ""
-    echo "⏱️  编辑监控设置"
+    echo "[监控] 编辑监控设置"
     echo "==============="
     echo ""
 
@@ -1371,7 +1371,7 @@ update_config_value() {
 # 添加同步路径
 add_sync_path() {
     echo ""
-    echo "➕ 添加新的同步路径"
+    echo "[添加] 添加新的同步路径"
     echo "==================="
     echo ""
 
@@ -1384,7 +1384,7 @@ add_sync_path() {
     fi
 
     if [ ! -e "$local_path" ]; then
-        echo "⚠️  路径不存在: $local_path"
+        echo "[警告] 路径不存在: $local_path"
         echo -n "是否继续添加？[y/N]: "
         read -r continue_add
         if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
@@ -1425,7 +1425,7 @@ $new_path"
 # 删除同步路径
 remove_sync_path() {
     echo ""
-    echo "➖ 删除同步路径"
+    echo "[删除] 删除同步路径"
     echo "==============="
     echo ""
 
@@ -1468,7 +1468,7 @@ remove_sync_path() {
 # 修改同步路径
 modify_sync_path() {
     echo ""
-    echo "✏️  修改同步路径"
+    echo "[编辑] 修改同步路径"
     echo "==============="
     echo ""
 
@@ -1488,7 +1488,7 @@ modify_sync_path() {
 # 编辑文件过滤规则
 edit_filter_section() {
     echo ""
-    echo "🔍 编辑文件过滤规则"
+    echo "[过滤] 编辑文件过滤规则"
     echo "==================="
     echo ""
 
@@ -1561,7 +1561,7 @@ edit_filter_section() {
 # 编辑提交设置
 edit_commit_section() {
     echo ""
-    echo "📝 编辑提交设置"
+    echo "[提交] 编辑提交设置"
     echo "==============="
     echo ""
 
@@ -1624,7 +1624,7 @@ edit_commit_section() {
 # 编辑网络设置
 edit_network_section() {
     echo ""
-    echo "🌐 编辑网络设置"
+    echo "[网络] 编辑网络设置"
     echo "==============="
     echo ""
 
@@ -1725,7 +1725,7 @@ edit_network_section() {
 # 显示完整配置文件
 show_full_config() {
     echo ""
-    echo "📄 完整配置文件内容"
+    echo "[文件] 完整配置文件内容"
     echo "==================="
     echo ""
 
@@ -1743,11 +1743,11 @@ show_full_config() {
 # 重置为默认配置
 reset_to_default_config() {
     echo ""
-    echo "🔄 重置为默认配置"
+    echo "[逆时针] 重置为默认配置"
     echo "=================="
     echo ""
 
-    echo "⚠️  警告: 这将删除所有当前配置并创建默认配置文件"
+    echo "[警告]  警告: 这将删除所有当前配置并创建默认配置文件"
     echo ""
     echo -n "确认重置配置？[y/N]: "
     read -r confirm_reset
@@ -1784,11 +1784,11 @@ reset_to_default_config() {
 # 使用文本编辑器
 edit_with_text_editor() {
     echo ""
-    echo "📝 使用文本编辑器"
+    echo "[提交] 使用文本编辑器"
     echo "=================="
     echo ""
 
-    echo "⚠️  注意: 直接编辑配置文件可能导致格式错误"
+    echo "[警告]  注意: 直接编辑配置文件可能导致格式错误"
     echo "建议使用交互式编辑功能来修改配置"
     echo ""
     echo -n "确认使用文本编辑器？[y/N]: "
@@ -1817,16 +1817,16 @@ edit_with_text_editor() {
 # 测试当前配置
 test_current_config() {
     echo ""
-    echo "🔍 测试当前配置"
+    echo "[测试] 测试当前配置"
     echo "==============="
     echo ""
 
     if test_config; then
         echo ""
-        log_info "✅ 配置测试通过"
+        log_info "[成功] 配置测试通过"
     else
         echo ""
-        log_error "❌ 配置测试失败"
+        log_error "[失败] 配置测试失败"
         echo ""
         echo "常见问题:"
         echo "• 检查GitHub用户名和令牌是否正确"
@@ -2361,7 +2361,7 @@ run_setup_wizard() {
 
     # 检查是否已有配置文件
     if [ -f "$CONFIG_FILE" ]; then
-        echo "🔍 检测到现有配置文件: $CONFIG_FILE"
+        echo "[测试] 检测到现有配置文件: $CONFIG_FILE"
         echo ""
         echo "请选择操作："
         echo "1) 覆盖现有配置（重新配置）"
@@ -2399,24 +2399,24 @@ run_setup_wizard() {
 
 # 显示向导菜单
 show_wizard_menu() {
-    echo "📋 配置向导模式选择："
+    echo "[配置] 配置向导模式选择："
     echo ""
-    echo "1) 🚀 快速配置（推荐新手）"
+    echo "1) [快速] 快速配置（推荐新手）"
     echo "   - 使用预设模板"
     echo "   - 只需输入基本信息"
     echo "   - 自动配置常用选项"
     echo ""
-    echo "2) ⚙️  标准配置（推荐）"
+    echo "2) [标准] 标准配置（推荐）"
     echo "   - 逐步配置所有选项"
     echo "   - 提供详细说明和建议"
     echo "   - 适合大多数用户"
     echo ""
-    echo "3) 🔧 高级配置（专家用户）"
+    echo "3) [高级] 高级配置（专家用户）"
     echo "   - 配置所有高级选项"
     echo "   - 自定义过滤规则"
     echo "   - 网络和性能优化"
     echo ""
-    echo "4) 📄 从模板创建"
+    echo "4) [模板] 从模板创建"
     echo "   - 选择预设配置模板"
     echo "   - 快速适配常见场景"
     echo ""
@@ -2438,7 +2438,7 @@ show_wizard_menu() {
 # 快速配置向导
 run_quick_wizard() {
     echo ""
-    echo "🚀 快速配置向导"
+    echo "[快速] 快速配置向导"
     echo "================"
     echo ""
 
@@ -2447,7 +2447,7 @@ run_quick_wizard() {
 
     # 选择预设模板
     echo ""
-    echo "📋 选择配置模板："
+    echo "[配置] 选择配置模板："
     echo "1) OpenWrt路由器配置同步"
     echo "2) 开发环境配置同步"
     echo "3) 服务器配置备份"
@@ -2474,7 +2474,7 @@ run_quick_wizard() {
 
 # 获取GitHub凭据
 get_github_credentials() {
-    echo "🔑 GitHub账户配置"
+    echo "[GitHub] GitHub账户配置"
     echo "=================="
     echo ""
 
@@ -2484,24 +2484,24 @@ get_github_credentials() {
         read -r github_username
 
         if [ -z "$github_username" ]; then
-            echo "❌ 用户名不能为空，请重新输入"
+            echo "[错误] 用户名不能为空，请重新输入"
             continue
         fi
 
         # 验证用户名格式
         if echo "$github_username" | grep -qE '^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'; then
-            echo "✅ 用户名格式正确"
+            echo "[成功] 用户名格式正确"
             break
         else
-            echo "❌ 用户名格式不正确，只能包含字母、数字和连字符"
+            echo "[错误] 用户名格式不正确，只能包含字母、数字和连字符"
         fi
     done
 
     # 获取GitHub令牌
     echo ""
-    echo "🔐 GitHub个人访问令牌配置"
+    echo "[令牌] GitHub个人访问令牌配置"
     echo ""
-    echo "📖 如何获取令牌："
+    echo "[说明] 如何获取令牌："
     echo "   1. 访问 https://github.com/settings/tokens"
     echo "   2. 点击 'Generate new token (classic)'"
     echo "   3. 选择 'repo' 权限（完整仓库访问）"
@@ -2513,19 +2513,19 @@ get_github_credentials() {
         read -r github_token
 
         if [ -z "$github_token" ]; then
-            echo "❌ 令牌不能为空，请重新输入"
+            echo "[失败] 令牌不能为空，请重新输入"
             continue
         fi
 
         # 验证令牌格式（GitHub classic token格式）
         if echo "$github_token" | grep -qE '^ghp_[a-zA-Z0-9]{36}$'; then
-            echo "✅ 令牌格式正确"
+            echo "[成功] 令牌格式正确"
             break
         elif echo "$github_token" | grep -qE '^github_pat_[a-zA-Z0-9_]{82}$'; then
-            echo "✅ 令牌格式正确（Fine-grained token）"
+            echo "[成功] 令牌格式正确（Fine-grained token）"
             break
         else
-            echo "⚠️  令牌格式可能不正确，但将继续使用"
+            echo "[警告]  令牌格式可能不正确，但将继续使用"
             echo -n "确认使用此令牌？[y/N]: "
             read -r confirm
             if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
@@ -2536,11 +2536,11 @@ get_github_credentials() {
 
     # 测试GitHub连接
     echo ""
-    echo "🔍 测试GitHub连接..."
+    echo "[测试] 测试GitHub连接..."
     if test_github_connection_with_token "$github_username" "$github_token"; then
-        echo "✅ GitHub连接测试成功"
+        echo "[成功] GitHub连接测试成功"
     else
-        echo "❌ GitHub连接测试失败"
+        echo "[失败] GitHub连接测试失败"
         echo -n "是否继续配置？[y/N]: "
         read -r continue_config
         if [ "$continue_config" != "y" ] && [ "$continue_config" != "Y" ]; then
@@ -2565,7 +2565,7 @@ test_github_connection_with_token() {
 # OpenWrt模板配置
 apply_openwrt_template() {
     echo ""
-    echo "📱 OpenWrt路由器配置模板"
+    echo "[OpenWrt] OpenWrt路由器配置模板"
     echo "========================"
     echo ""
     echo "此模板将同步以下OpenWrt配置："
@@ -2592,7 +2592,7 @@ apply_openwrt_template() {
 # 开发环境模板配置
 apply_dev_template() {
     echo ""
-    echo "💻 开发环境配置模板"
+    echo "[开发] 开发环境配置模板"
     echo "==================="
     echo ""
     echo "此模板将同步以下开发配置："
@@ -2620,7 +2620,7 @@ $HOME/scripts|$github_username/$repo_name|main|scripts"
 # 服务器配置模板
 apply_server_template() {
     echo ""
-    echo "🖥️  服务器配置模板"
+    echo "[服务器]  服务器配置模板"
     echo "=================="
     echo ""
     echo "此模板将同步以下服务器配置："
@@ -2646,7 +2646,7 @@ apply_server_template() {
 # 获取基本同步路径
 get_basic_sync_paths() {
     echo ""
-    echo "📁 自定义同步路径配置"
+    echo "[路径] 自定义同步路径配置"
     echo "===================="
     echo ""
     echo "格式说明: 本地路径|GitHub仓库|分支|目标路径"
@@ -2667,7 +2667,7 @@ get_basic_sync_paths() {
 
         # 验证路径存在
         if [ ! -e "$local_path" ]; then
-            echo "⚠️  路径不存在: $local_path"
+            echo "[警告]  路径不存在: $local_path"
             echo -n "是否继续添加？[y/N]: "
             read -r continue_add
             if [ "$continue_add" != "y" ] && [ "$continue_add" != "Y" ]; then
@@ -2697,12 +2697,12 @@ $local_path|$github_username/$repo_name|$branch|$target_path"
         fi
 
         path_count=$((path_count + 1))
-        echo "✅ 已添加同步路径"
+        echo "[成功] 已添加同步路径"
         echo ""
     done
 
     if [ -z "$sync_paths" ]; then
-        echo "⚠️  未配置同步路径，使用默认配置"
+        echo "[警告]  未配置同步路径，使用默认配置"
         sync_paths="/etc/config|$github_username/config-backup|main|config"
     fi
 
@@ -2713,7 +2713,7 @@ $local_path|$github_username/$repo_name|$branch|$target_path"
 # 标准配置向导
 run_standard_wizard() {
     echo ""
-    echo "⚙️  标准配置向导"
+    echo "[标准]  标准配置向导"
     echo "==============="
     echo ""
 
@@ -2736,7 +2736,7 @@ run_standard_wizard() {
 # 获取详细同步路径配置
 get_detailed_sync_paths() {
     echo ""
-    echo "📁 同步路径配置"
+    echo "[路径] 同步路径配置"
     echo "==============="
     echo ""
     echo "配置要同步的文件和目录路径"
@@ -2763,13 +2763,13 @@ get_detailed_sync_paths() {
             # 验证路径
             if [ -e "$local_path" ]; then
                 if [ -d "$local_path" ]; then
-                    echo "✅ 目录存在: $local_path"
+                    echo "[成功] 目录存在: $local_path"
                 else
-                    echo "✅ 文件存在: $local_path"
+                    echo "[成功] 文件存在: $local_path"
                 fi
                 break
             else
-                echo "⚠️  路径不存在: $local_path"
+                echo "[警告]  路径不存在: $local_path"
                 echo -n "是否继续使用此路径？[y/N]: "
                 read -r use_path
                 if [ "$use_path" = "y" ] || [ "$use_path" = "Y" ]; then
@@ -2803,18 +2803,18 @@ get_detailed_sync_paths() {
 $local_path|$github_username/$repo_name|$branch|$target_path"
         fi
 
-        echo "✅ 已添加: $local_path → $github_username/$repo_name:$branch/$target_path"
+        echo "[成功] 已添加: $local_path → $github_username/$repo_name:$branch/$target_path"
         path_count=$((path_count + 1))
         echo ""
     done
 
     if [ -z "$sync_paths" ]; then
-        echo "⚠️  未配置同步路径，使用默认配置"
+        echo "[警告]  未配置同步路径，使用默认配置"
         sync_paths="/etc/config|$github_username/config-backup|main|config"
     fi
 
     echo ""
-    echo "📋 已配置的同步路径:"
+    echo "[配置] 已配置的同步路径:"
     echo "$sync_paths" | while IFS='|' read -r lpath repo branch tpath; do
         echo "  • $lpath → $repo:$branch/$tpath"
     done
@@ -2823,7 +2823,7 @@ $local_path|$github_username/$repo_name|$branch|$target_path"
 # 获取监控设置
 get_monitoring_settings() {
     echo ""
-    echo "⏱️  监控设置配置"
+    echo "[监控]  监控设置配置"
     echo "==============="
     echo ""
 
@@ -2840,7 +2840,7 @@ get_monitoring_settings() {
 
     # 验证输入
     if ! echo "$poll_interval" | grep -qE '^[0-9]+$' || [ "$poll_interval" -lt 5 ]; then
-        echo "⚠️  无效输入，使用默认值30秒"
+        echo "[警告]  无效输入，使用默认值30秒"
         poll_interval=30
     fi
 
@@ -2862,13 +2862,13 @@ get_monitoring_settings() {
         *) log_level="INFO" ;;
     esac
 
-    echo "✅ 监控设置: 轮询间隔${poll_interval}秒, 日志级别${log_level}"
+    echo "[成功] 监控设置: 轮询间隔${poll_interval}秒, 日志级别${log_level}"
 }
 
 # 获取基本高级选项
 get_basic_advanced_options() {
     echo ""
-    echo "🔧 高级选项配置"
+    echo "[高级] 高级选项配置"
     echo "==============="
     echo ""
 
@@ -2907,13 +2907,13 @@ get_basic_advanced_options() {
         exclude_patterns="*.tmp *.log *.pid *.lock .git *.swp *~ .DS_Store"
     fi
 
-    echo "✅ 高级选项配置完成"
+    echo "[成功] 高级选项配置完成"
 }
 
 # 高级配置向导
 run_advanced_wizard() {
     echo ""
-    echo "🔧 高级配置向导"
+    echo "[高级] 高级配置向导"
     echo "==============="
     echo ""
 
@@ -2939,7 +2939,7 @@ run_advanced_wizard() {
 # 获取高级选项
 get_advanced_options() {
     echo ""
-    echo "🔧 高级选项配置"
+    echo "[高级] 高级选项配置"
     echo "==============="
     echo ""
 
@@ -3024,13 +3024,13 @@ get_advanced_options() {
     read -r retry_interval
     retry_interval=${retry_interval:-5}
 
-    echo "✅ 高级选项配置完成"
+    echo "[成功] 高级选项配置完成"
 }
 
 # 获取网络设置
 get_network_settings() {
     echo ""
-    echo "🌐 网络设置配置"
+    echo "[网络] 网络设置配置"
     echo "==============="
     echo ""
 
@@ -3061,35 +3061,35 @@ get_network_settings() {
         https_proxy=""
     fi
 
-    echo "✅ 网络设置配置完成"
+    echo "[成功] 网络设置配置完成"
 }
 
 # 模板向导
 run_template_wizard() {
     echo ""
-    echo "📄 模板配置向导"
+    echo "[文件] 模板配置向导"
     echo "==============="
     echo ""
 
     echo "选择预设配置模板:"
     echo ""
-    echo "1) 🏠 家庭路由器配置"
+    echo "1) [家庭] 家庭路由器配置"
     echo "   - 基本OpenWrt配置同步"
     echo "   - 网络设置、防火墙规则"
     echo ""
-    echo "2) 🏢 企业路由器配置"
+    echo "2) [企业] 企业路由器配置"
     echo "   - 完整OpenWrt配置同步"
     echo "   - 包含高级网络配置"
     echo ""
-    echo "3) 💻 开发工作站配置"
+    echo "3) [开发] 开发工作站配置"
     echo "   - 开发环境配置文件"
     echo "   - 编辑器、Shell配置"
     echo ""
-    echo "4) 🖥️  生产服务器配置"
+    echo "4) [服务器]  生产服务器配置"
     echo "   - 服务器配置文件"
     echo "   - 系统服务、定时任务"
     echo ""
-    echo "5) 🔧 自定义最小配置"
+    echo "5) [高级] 自定义最小配置"
     echo "   - 仅基本同步功能"
     echo "   - 手动指定路径"
     echo ""
@@ -3236,12 +3236,12 @@ test_and_finish() {
     log_info "测试配置..."
 
     if test_config; then
-        log_success "✅ 配置测试通过！"
+        log_success "[成功] 配置测试通过！"
 
         echo ""
-        echo "🎉 配置向导完成！"
+        echo "[完成] 配置向导完成！"
         echo ""
-        echo "📋 配置摘要:"
+        echo "[配置] 配置摘要:"
         echo "  • GitHub用户: $github_username"
         echo "  • 轮询间隔: ${poll_interval}秒"
         echo "  • 日志级别: $log_level"
@@ -3254,14 +3254,14 @@ test_and_finish() {
         if [ "$start_service" != "n" ] && [ "$start_service" != "N" ]; then
             echo ""
             if start_daemon; then
-                log_success "🚀 同步服务启动成功！"
+                log_success "[快速] 同步服务启动成功！"
                 echo ""
                 echo "服务管理命令:"
                 echo "  github-sync status   # 查看状态"
                 echo "  github-sync stop     # 停止服务"
                 echo "  github-sync restart  # 重启服务"
             else
-                log_error "❌ 同步服务启动失败，请检查配置"
+                log_error "[失败] 同步服务启动失败，请检查配置"
             fi
         else
             echo ""
@@ -3269,7 +3269,7 @@ test_and_finish() {
             echo "  github-sync start"
         fi
     else
-        log_error "❌ 配置测试失败，请检查GitHub用户名和令牌"
+        log_error "[失败] 配置测试失败，请检查GitHub用户名和令牌"
         echo ""
         echo "可以稍后编辑配置文件: $CONFIG_FILE"
         echo "然后运行: github-sync test"
@@ -3282,7 +3282,7 @@ test_and_finish() {
 # 编辑现有配置
 edit_existing_config() {
     echo ""
-    echo "✏️  编辑现有配置"
+    echo "[编辑]  编辑现有配置"
     echo "==============="
     echo ""
 
@@ -3323,7 +3323,7 @@ edit_existing_config() {
 # 编辑GitHub凭据
 edit_github_credentials() {
     echo ""
-    echo "🔑 编辑GitHub凭据"
+    echo "[GitHub] 编辑GitHub凭据"
     echo "=================="
     echo ""
     echo "当前GitHub用户: $GITHUB_USERNAME"
@@ -3375,7 +3375,7 @@ edit_github_credentials() {
 # 家庭路由器模板
 apply_home_router_template() {
     echo ""
-    echo "🏠 家庭路由器配置模板"
+    echo "[家庭] 家庭路由器配置模板"
     echo "===================="
     echo ""
 
@@ -3398,7 +3398,7 @@ apply_home_router_template() {
 # 企业路由器模板
 apply_enterprise_router_template() {
     echo ""
-    echo "🏢 企业路由器配置模板"
+    echo "[企业] 企业路由器配置模板"
     echo "===================="
     echo ""
 
@@ -3424,7 +3424,7 @@ apply_enterprise_router_template() {
 # 开发工作站模板
 apply_dev_workstation_template() {
     echo ""
-    echo "💻 开发工作站配置模板"
+    echo "[开发] 开发工作站配置模板"
     echo "===================="
     echo ""
 
@@ -3450,7 +3450,7 @@ $HOME/scripts|$github_username/$repo_name|main|scripts"
 # 生产服务器模板
 apply_production_server_template() {
     echo ""
-    echo "🖥️  生产服务器配置模板"
+    echo "[服务器]  生产服务器配置模板"
     echo "====================="
     echo ""
 
@@ -3475,7 +3475,7 @@ apply_production_server_template() {
 # 最小配置模板
 apply_minimal_template() {
     echo ""
-    echo "🔧 自定义最小配置模板"
+    echo "[高级] 自定义最小配置模板"
     echo "===================="
     echo ""
 
