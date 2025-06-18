@@ -1,0 +1,2609 @@
+proxies:
+  - alterId: 2
+    cipher: auto
+    name: "\U0001F1FA\U0001F1F8美国1 | ⬇️ 2.4MB/s"
+    network: ws
+    port: 30829
+    server: v29.heduian.link
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: cbb3f877-d1fb-344c-87a9-d153bffd5484
+    ws-opts:
+      headers:
+        Host: ocbc.com
+      path: /oooo
+    xudp: true
+    servername: ocbc.com
+  - alterId: 2
+    cipher: auto
+    name: "\U0001F1E8\U0001F1E6加拿大1 | ⬇️ 3.4MB/s"
+    network: ws
+    port: 30825
+    server: v25.heduian.link
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: cbb3f877-d1fb-344c-87a9-d153bffd5484
+    ws-opts:
+      headers:
+        Host: v25.heduian.link
+      path: /oooo
+    xudp: true
+    servername: v25.heduian.link
+  - name: "\U0001F1F8\U0001F1EC新加坡1 | ⬇️ 8.8MB/s"
+    password: FpQhGpIr
+    port: 38632
+    server: 36.151.251.62
+    skip-cert-verify: true
+    sni: 36.151.251.62
+    type: trojan
+    udp: true
+  - delay: 1017
+    down: ''
+    fingerprint: ''
+    name: "\U0001F1F7\U0001F1FA俄罗斯1 | ⬇️ 1.3MB/s"
+    obfs: ''
+    obfs-password: ''
+    password: dongtaiwang.com
+    port: 30033
+    server: 46.17.41.217
+    skip-cert-verify: true
+    sni: www.bing.com
+    type: hysteria2
+    up: ''
+  - alpn:
+      - h3
+    auth-str: dongtaiwang.com
+    auth_str: dongtaiwang.com
+    delay: 2788
+    down: '55'
+    name: "\U0001F1EB\U0001F1F7法国1 | ⬇️ 4.9MB/s"
+    obfs: ''
+    port: 46938
+    protocol: ''
+    server: 195.154.200.178
+    skip-cert-verify: true
+    sni: apple.com
+    type: hysteria
+    up: '11'
+  - alpn:
+      - h3
+    auth-str: dongtaiwang.com
+    auth_str: dongtaiwang.com
+    delay: 1431
+    down: 100
+    name: "\U0001F1F3\U0001F1F1荷兰1 | ⬇️ 9.1MB/s"
+    port: 14241
+    protocol: udp
+    server: 51.159.226.1
+    skip-cert-verify: true
+    sni: apple.com
+    type: hysteria
+    udp: true
+    up: 100
+  - auth: e6d8d743-a9bc-48c9-be99-8f3cc94d16e1
+    delay: 1356
+    name: "\U0001F1FA\U0001F1F8美国2 | ⬇️ 6.4MB/s"
+    password: e6d8d743-a9bc-48c9-be99-8f3cc94d16e1
+    port: 10086
+    server: aus.pagate.top
+    skip-cert-verify: false
+    sni: aus.pagate.top
+    type: hysteria2
+  - delay: 1675
+    name: "\U0001F1F8\U0001F1EC新加坡2 | ⬇️ 3.3MB/s"
+    password: LfcDJuqe
+    port: 38632
+    server: 36.151.251.62
+    skip-cert-verify: true
+    type: trojan
+  - client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国3 | ⬇️ 2.7MB/s"
+    network: ws
+    password: ttfang
+    port: 10843
+    server: 121.167.145.40
+    skip-cert-verify: true
+    sni: ttfang.fange.me
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/43.0.2357.65 Safari/537.36
+      path: /
+  - client-fingerprint: chrome
+    name: "\U0001F1F3\U0001F1F1荷兰2 | ⬇️ 2.0MB/s"
+    network: ws
+    password: ttfang
+    port: 25156
+    server: 121.167.145.40
+    skip-cert-verify: true
+    sni: ttfang.fange.me
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/41.0.2272.101 Safari/537.36
+      path: /
+  - client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国4 | ⬇️ 2.2MB/s"
+    network: ws
+    password: ttfang
+    port: 13364
+    server: 59.26.30.111
+    skip-cert-verify: true
+    sni: ttfang.fange.me
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/63.0.3239.84 Safari/537.36
+      path: /
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国5 | ⬇️ 5.3MB/s"
+    network: ws
+    password: a7c9c017-db10-4d15-b01b-0634db498b57
+    port: 443
+    server: ert5.0890604.xyz
+    skip-cert-verify: false
+    sni: ERt5.0890604.XyZ
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36
+          (KHTML, like Gecko) Chrome/41.0.2272.89 Safari/537.36
+      path: /OBmXcXufeTh7sLJtI1
+  - cipher: aes-256-cfb
+    name: "\U0001F300其他1-VN | ⬇️ 2.5MB/s"
+    password: Xn8jKdmDM00IeO%#$#fJAMtsEAEUOpH/YWYtYqDFnT0SV
+    port: 38388
+    server: 103.186.154.26
+    type: ss
+    udp: true
+  - cipher: aes-256-cfb
+    name: "\U0001F300其他2-VN | ⬇️ 2.1MB/s"
+    password: Xn8jKdmDM00IeO%#$#fJAMtsEAEUOpH/YWYtYqDFnT0SV
+    port: 38388
+    server: 103.186.154.38
+    type: ss
+    udp: true
+  - cipher: aes-256-cfb
+    name: "\U0001F300其他3-VN | ⬇️ 3.3MB/s"
+    password: Xn8jKdmDM00IeO%#$#fJAMtsEAEUOpH/YWYtYqDFnT0SV
+    port: 38388
+    server: 103.186.155.18
+    type: ss
+    udp: true
+  - cipher: chacha20-ietf
+    name: "\U0001F1ED\U0001F1F0香港1 | ⬇️ 1.1MB/s"
+    password: asd123456
+    port: 8388
+    server: 154.197.26.237
+    type: ss
+    udp: true
+  - cipher: aes-256-gcm
+    name: "\U0001F1E7\U0001F1F7巴西1 | ⬇️ 4.7MB/s"
+    password: a869ba7e-e46c-46bf-9d0a-2a4ddecc0627
+    port: 7705
+    server: fell4.dogsvpn.top
+    type: ss
+    udp: true
+  - cipher: aes-256-cfb
+    name: "\U0001F1F0\U0001F1F7韩国1 | ⬇️ 19.1MB/s"
+    password: qwerREWQ@@
+    port: 15098
+    server: p222.panda001.net
+    type: ss
+    udp: true
+  - name: "\U0001F1FA\U0001F1F8美国6 | ⬇️ 1.1MB/s"
+    network: ws
+    port: 80
+    server: 172.66.139.99
+    type: vless
+    udp: true
+    uuid: 26bc13af-e442-4956-afd4-b8f85744d26f
+    ws-opts:
+      headers:
+        Host: fggerlad.gerald81.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/55.0.2883.87 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: fggerlad.gerald81.dpdns.org
+  - name: "\U0001F1EB\U0001F1EE芬兰1 | ⬇️ 1.5MB/s"
+    network: ws
+    port: 80
+    server: 104.16.241.234
+    type: vless
+    udp: true
+    uuid: 92f481b6-ad92-43e4-a683-2bb0aeaa9846
+    ws-opts:
+      headers:
+        Host: dw.alibichareh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36
+          (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: dw.alibichareh.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国7 | ⬇️ 4.7MB/s"
+    network: ws
+    port: 443
+    server: 172.67.219.196
+    tls: true
+    type: vless
+    udp: true
+    uuid: 25b0f5db-5405-40d7-85eb-663cfa7e918d
+    ws-opts:
+      headers:
+        Host: cddfrt678.852224.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/68.0.3440.106 Safari/537.36
+      path: /l3y4CZ9KUctFw6Ri5y2
+    xudp: true
+    servername: CDDfrT678.852224.DpdNs.ORg
+  - name: "\U0001F1E9\U0001F1EA德国1 | ⬇️ 15.0MB/s"
+    network: ws
+    port: 80
+    server: 172.67.9.145
+    type: vless
+    udp: true
+    uuid: b55ec078-3b17-4ed1-a697-71f464cdcaaa
+    ws-opts:
+      headers:
+        Host: kssepa.sabzipolobamahi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/68.0.3440.106 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: kssepa.sabzipolobamahi.dpdns.org
+  - client-fingerprint: firefox
+    grpc-opts:
+      grpc-service-name: >-
+        Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs_Telegram_configMs
+    name: "\U0001F1E9\U0001F1EA德国2 | ⬇️ 12.0MB/s"
+    network: grpc
+    port: 443
+    reality-opts:
+      public-key: Ih0HZjPvGjLGORRBc7ivhazmBTlYILGMe9WHO17WNWc
+      short-id: 71a2
+    server: 185.235.241.208
+    tls: true
+    type: vless
+    udp: true
+    uuid: fce886cf-9623-4ba0-9599-edba06c7877c
+    xudp: true
+    servername: maps.google.com
+  - name: "\U0001F1EB\U0001F1EE芬兰2 | ⬇️ 9.7MB/s"
+    network: ws
+    port: 80
+    server: 104.16.136.210
+    type: vless
+    udp: true
+    uuid: cba0b35b-8943-4c70-a864-9f78145b7897
+    ws-opts:
+      headers:
+        Host: agolna.mahsaamini.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/49.0.2623.110 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国8 | ⬇️ 9.6MB/s"
+    network: ws
+    port: 443
+    server: 172.67.204.75
+    tls: true
+    type: vless
+    udp: true
+    uuid: 9486ff17-2481-40c7-a5c4-d0d307de2509
+    ws-opts:
+      headers:
+        Host: vvvvvvvvvvv.818185.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.0) AppleWebKit/537.36 (KHTML, like Gecko)
+          Chrome/49.0.2623.112 Safari/537.36
+      path: /xkqDvmTtFTfJdU239ar
+    xudp: true
+    servername: vvvvvvvvvvv.818185.xyz
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1EB\U0001F1EE芬兰3 | ⬇️ 9.7MB/s"
+    network: grpc
+    port: 2182
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.150.157
+    tls: true
+    type: vless
+    udp: true
+    uuid: b96981a2-a6aa-44c0-b21f-88328379ec33
+    xudp: true
+    servername: chess.com
+  - client-fingerprint: firefox
+    grpc-opts:
+      grpc-service-name: 'Tel:@VPN_KING_V2RAY'
+    name: "\U0001F300其他4-SE | ⬇️ 9.1MB/s"
+    network: grpc
+    port: 2083
+    reality-opts:
+      public-key: BUzfBVmWNSPk69ZlNgIlMvjB_KctXOhYaLx_bBlf70U
+      short-id: 3b35fd9cd4d47fe6
+    server: 109.120.132.204
+    tls: true
+    type: vless
+    udp: true
+    uuid: e0ebc2d0-88c3-49fd-9d25-2b6d4a2ede0d
+    xudp: true
+    servername: speedtest.net
+  - name: "\U0001F1FA\U0001F1F8美国9 | ⬇️ 5.1MB/s"
+    network: ws
+    port: 80
+    server: 172.67.54.233
+    type: vless
+    udp: true
+    uuid: 26bc13af-e442-4956-afd4-b8f85744d26f
+    ws-opts:
+      headers:
+        Host: fggerlad.gerald81.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/68.0.3440.106 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: fggerlad.gerald81.dpdns.org
+  - name: "\U0001F1FA\U0001F1F8美国10 | ⬇️ 2.8MB/s"
+    network: ws
+    port: 80
+    server: 104.18.209.108
+    type: vless
+    udp: true
+    uuid: d1237c01-58b5-48f9-8a27-8a396b7f5422
+    ws-opts:
+      headers:
+        Host: ey.nazanin.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/54.0.2840.71 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: ey.nazanin.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国11 | ⬇️ 11.1MB/s"
+    network: ws
+    port: 443
+    server: 172.67.130.204
+    tls: true
+    type: vless
+    udp: true
+    uuid: c226ac5d-65e9-4379-95c3-fb542bc242d8
+    ws-opts:
+      headers:
+        Host: ddddddddddf.777198.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; SM-G610M Build/NRD90M)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile
+          Safari/537.36
+      path: /OjdW89Bpg4ykd4O
+    xudp: true
+    servername: ddDDdDDdDDF.777198.XyZ
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国12 | ⬇️ 15.1MB/s"
+    network: ws
+    password: 6757b7d6-fa32-4708-b5d1-30e3cf928b51
+    port: 443
+    server: 172.67.135.23
+    skip-cert-verify: false
+    sni: mmmMM.890601.xYZ
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; TRT-LX2 Build/HUAWEITRT-LX2; wv)
+          AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0
+          Chrome/59.0.3071.125 Mobile Safari/537.36
+      path: /l96MZ8se5Kl2p8BiMhP42l
+  - name: "\U0001F300其他5-未识别 | ⬇️ 3.8MB/s"
+    network: ws
+    port: 80
+    server: 104.27.126.10
+    type: vless
+    udp: true
+    uuid: b55ec078-3b17-4ed1-a697-71f464cdcaaa
+    ws-opts:
+      headers:
+        Host: kssepa.sabzipolobamahi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/54.0.2840.99 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: kssepa.sabzipolobamahi.dpdns.org
+  - client-fingerprint: chrome
+    name: "\U0001F1EC\U0001F1E7英国1 | ⬇️ 18.3MB/s"
+    network: ws
+    port: 443
+    server: time.is
+    tls: true
+    type: vless
+    udp: true
+    uuid: 838f5273-5d2d-4630-a0f5-9cc8e4aef4d6
+    ws-opts:
+      headers:
+        Host: kg.ilikeu.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.10
+          (KHTML, like Gecko) Chrome/8.0.552.237 Safari/534.10
+      path: /
+    xudp: true
+    servername: kg.ilikeu.dpdns.org
+  - name: "\U0001F1EB\U0001F1EE芬兰4 | ⬇️ 12.3MB/s"
+    network: ws
+    port: 80
+    server: 104.16.137.145
+    type: vless
+    udp: true
+    uuid: cba0b35b-8943-4c70-a864-9f78145b7897
+    ws-opts:
+      headers:
+        Host: agolna.mahsaamini.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/55.0.2883.87 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: agolna.mahsaamini.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国13 | ⬇️ 8.5MB/s"
+    network: ws
+    port: 443
+    server: 172.67.204.22
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: dddfrt5.890602.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/70.0.3538.67 Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: DdDFRt5.890602.xyZ
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国14 | ⬇️ 2.1MB/s"
+    network: ws
+    port: 443
+    server: 172.67.199.104
+    tls: true
+    type: vless
+    udp: true
+    uuid: 03e92910-34b1-4245-ac63-04a865f43cd5
+    ws-opts:
+      headers:
+        Host: 3ert.4444916.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/49.0.2623.110 Safari/537.36
+      path: /f7vKDX2UecxmlPhIJoo2wcE6Q
+    xudp: true
+    servername: 3eRt.4444916.xyz
+  - name: "\U0001F1FA\U0001F1F8美国15 | ⬇️ 1.5MB/s"
+    network: ws
+    port: 80
+    server: 104.24.31.150
+    type: vless
+    udp: true
+    uuid: 9d6315f7-f272-4806-97c8-5fdaafad391e
+    ws-opts:
+      headers:
+        Host: lot.sosant.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.1.1; CPH1723 Build/N6F26Q)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.98 Mobile
+          Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: lot.sosant.dpdns.org
+  - name: "\U0001F1E9\U0001F1EA德国3 | ⬇️ 2.2MB/s"
+    network: ws
+    port: 80
+    server: 172.67.92.147
+    type: vless
+    udp: true
+    uuid: b8be6118-0dd7-4402-ae1a-69b2816f3a7f
+    ws-opts:
+      headers:
+        Host: br.presskiwi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/70.0.3538.67 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: br.presskiwi.dpdns.org
+  - name: "\U0001F1EB\U0001F1EE芬兰5 | ⬇️ 4.6MB/s"
+    network: ws
+    port: 80
+    server: 104.22.22.78
+    type: vless
+    udp: true
+    uuid: cba0b35b-8943-4c70-a864-9f78145b7897
+    ws-opts:
+      headers:
+        Host: agolna.mahsaamini.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/54.0.2840.71 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: agolna.mahsaamini.dpdns.org
+  - name: "\U0001F1E9\U0001F1EA德国4 | ⬇️ 1.6MB/s"
+    network: ws
+    port: 2082
+    server: 104.17.148.22
+    type: vless
+    udp: true
+    uuid: aad070f5-3001-4046-d4a5-eb4452682165
+    ws-opts:
+      headers:
+        Host: >-
+          novinsoft.ir.oradoshop.com.persiangsm.ir.digikala.com.abadis.ir.shad.ir.divar.ir.downloadly.com.aparat.com.cafebazar.ir.varzesh3.com.ninisite.com.abadis.ir.bama.ir.p30download.ir.telewebion.bmi.ir.shad.ir.mayket.com.ninisite.top.
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/51.0.2704.106 Safari/537.36
+      path: /@spikevpn-@spikevpn-@spikevpn-@spikevpn-@spikevpn-@spikevpn?ed=2082
+    xudp: true
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国16 | ⬇️ 3.7MB/s"
+    network: ws
+    port: 443
+    server: 104.21.24.172
+    tls: true
+    type: vless
+    udp: true
+    uuid: 25b0f5db-5405-40d7-85eb-663cfa7e918d
+    ws-opts:
+      headers:
+        Host: cddfrt678.852224.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/62.0.3202.89 Safari/537.36
+      path: /l3y4CZ9KUctFw6Ri5y2
+    xudp: true
+    servername: CDDfrT678.852224.DpdNs.ORg
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国17 | ⬇️ 13.9MB/s"
+    network: ws
+    port: 443
+    server: 172.67.135.37
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: ttttttt67.459.pp.ua
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/59.0.3071.115 Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: tTTtTTT67.459.PP.uA
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国18 | ⬇️ 10.7MB/s"
+    network: ws
+    port: 443
+    server: 104.21.94.69
+    tls: true
+    type: vless
+    udp: true
+    uuid: bce0c7cb-08d1-46a7-b77b-7bff8b46252f
+    ws-opts:
+      headers:
+        Host: ffffffffff.000890604.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/59.0.3071.115 Safari/537.36
+      path: /Ryxyg63Pk7cFSnZBROjL3Q5vTymr
+    xudp: true
+    servername: FfFfffFFFf.000890604.Xyz
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国19 | ⬇️ 8.4MB/s"
+    network: ws
+    port: 443
+    server: 172.67.216.240
+    tls: true
+    type: vless
+    udp: true
+    uuid: 11fbdd36-f418-4894-b2ed-50426a01ebcb
+    ws-opts:
+      headers:
+        Host: mmmmmmmmmm.857856.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/66.0.3359.139 Safari/537.36
+      path: /RoieiqFtlfTpJjignez9wTcHYw4Ll
+    xudp: true
+    servername: mmmmmmmmmm.857856.xyz
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1E9\U0001F1EA德国5 | ⬇️ 8.1MB/s"
+    network: grpc
+    port: 3184
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.150.156
+    tls: true
+    type: vless
+    udp: true
+    uuid: 2e655095-7f4e-428d-9c7e-eb2278e153a8
+    xudp: true
+    servername: www.chess.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国20 | ⬇️ 11.4MB/s"
+    network: ws
+    password: 25b0f5db-5405-40d7-85eb-663cfa7e918d
+    port: 443
+    server: 104.21.24.172
+    skip-cert-verify: false
+    sni: cDvFbNMjkI9.852224.dPdNs.Org
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/60.0.3112.113 Safari/537.36
+      path: /jQJHvSHXKUctFw6Ri5y2
+  - name: "\U0001F1E9\U0001F1EA德国6 | ⬇️ 1.7MB/s"
+    network: ws
+    port: 80
+    server: 104.24.135.83
+    type: vless
+    udp: true
+    uuid: f78ce1bb-0fa6-4ef4-b4c9-b91014a7055d
+    ws-opts:
+      headers:
+        Host: delam.ahaysiahzangi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/70.0.3538.102 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: delam.ahaysiahzangi.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国21 | ⬇️ 13.7MB/s"
+    network: ws
+    port: 443
+    server: 172.67.135.23
+    tls: true
+    type: vless
+    udp: true
+    uuid: 6757b7d6-fa32-4708-b5d1-30e3cf928b51
+    ws-opts:
+      headers:
+        Host: kkkkkkkkkn.890601.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 8.0.0; ANE-LX3 Build/HUAWEIANE-LX3)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile
+          Safari/537.36
+      path: /IpfrZdyuhfl2p8BiMhP42l
+    xudp: true
+    servername: KKkkKkKKkn.890601.XYZ
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1E9\U0001F1EA德国7 | ⬇️ 18.6MB/s"
+    network: ws
+    port: 443
+    server: 104.25.159.246
+    tls: true
+    type: vless
+    udp: true
+    uuid: 65c71f37-baac-43be-b9dd-6057cd5eb901
+    ws-opts:
+      headers:
+        Host: MaIn-MEn2.clIents-githUb.com
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/69.0.3497.100 Safari/537.36
+      path: /25750/template-manager
+    xudp: true
+    servername: mAir-mEnu-mAsr00r.clIents-github.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国22 | ⬇️ 9.4MB/s"
+    network: ws
+    port: 443
+    server: 104.21.26.17
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: ttttttt67.459.pp.ua
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/55.0.2883.87 Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: tTTtTTT67.459.PP.uA
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国23 | ⬇️ 13.9MB/s"
+    network: ws
+    port: 443
+    server: 172.67.133.248
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: rrrfgt6.890604.filegear-sg.me
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/43.0.2357.65 Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: rrRFgt6.890604.fiLeGEAR-Sg.ME
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国24 | ⬇️ 1.4MB/s"
+    network: ws
+    port: 443
+    server: 104.21.29.205
+    tls: true
+    type: vless
+    udp: true
+    uuid: ce921385-2b31-45fe-84c5-1843e8ae845b
+    ws-opts:
+      headers:
+        Host: ffffffffffffg.222560.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; SM-G570M Build/NRD90M)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile
+          Safari/537.36
+      path: /1xrOld7e5RpK3I98dxLkez
+    xudp: true
+    servername: ffFfffFffffFG.222560.xyZ
+  - name: "\U0001F1F3\U0001F1F1荷兰3 | ⬇️ 2.2MB/s"
+    network: ws
+    port: 80
+    server: 104.16.100.188
+    type: vless
+    udp: true
+    uuid: 148709e4-402b-48dd-8892-ed39b55ea45c
+    ws-opts:
+      headers:
+        Host: entezar.loseyourself.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 5.1; A1601 Build/LMY47I)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Mobile
+          Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: entezar.loseyourself.dpdns.org
+  - client-fingerprint: firefox
+    http-opts:
+      headers: {}
+      path:
+        - /
+    name: "\U0001F1EC\U0001F1E7英国2 | ⬇️ 9.6MB/s"
+    network: tcp
+    port: 34045
+    reality-opts:
+      public-key: cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA
+      short-id: e8ab71d0
+    server: 206.245.230.114
+    tls: true
+    type: vless
+    udp: true
+    uuid: d8dd94fd-540e-461d-b5d4-acebef02c22a
+    xudp: true
+    servername: visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me
+  - name: "\U0001F1EB\U0001F1EE芬兰6 | ⬇️ 1.2MB/s"
+    network: ws
+    port: 80
+    server: 172.66.135.5
+    type: vless
+    udp: true
+    uuid: 5459f68e-d914-4b31-93a3-ecdf638b7a5b
+    ws-opts:
+      headers:
+        Host: abcd.taraneh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (X11; U; Linux i586; en-US) AppleWebKit/533.2 (KHTML, like
+          Gecko) Chrome/5.0.342.1 Safari/533.2
+      path: /?ed=2560
+    xudp: true
+    servername: abcd.taraneh.dpdns.org
+  - name: "\U0001F300其他6-未识别 | ⬇️ 1.2MB/s"
+    network: ws
+    port: 80
+    server: 172.67.136.116
+    type: vless
+    udp: true
+    uuid: 148709e4-402b-48dd-8892-ed39b55ea45c
+    ws-opts:
+      headers:
+        Host: entezar.loseyourself.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; SM-G570M) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/70.0.3538.80 Mobile Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: entezar.loseyourself.dpdns.org
+  - client-fingerprint: chrome
+    name: "\U0001F1F3\U0001F1F1荷兰4 | ⬇️ 4.8MB/s"
+    network: ws
+    port: 443
+    server: 141.101.120.132
+    tls: true
+    type: vless
+    udp: true
+    uuid: d342d11e-d424-4583-b36e-524ab1f0afa4
+    ws-opts:
+      headers:
+        Host: 1750120447146.wk.by.ktff.ssl.com.kokk.cn.cdnktff.pp.ua
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/51.0.2704.103 Safari/537.36
+      path: /?ed=2048
+    xudp: true
+    servername: 1750120447146.wk.by.ktff.ssl.com.kokk.cn.cdnktff.pp.ua
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1E9\U0001F1EA德国8 | ⬇️ 9.2MB/s"
+    network: grpc
+    port: 3184
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.144.165
+    tls: true
+    type: vless
+    udp: true
+    uuid: ca61341a-2363-445a-bf87-d06393a7fb39
+    xudp: true
+    servername: www.chess.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国25 | ⬇️ 3.6MB/s"
+    network: ws
+    port: 443
+    server: 104.21.75.75
+    tls: true
+    type: vless
+    udp: true
+    uuid: 11fbdd36-f418-4894-b2ed-50426a01ebcb
+    ws-opts:
+      headers:
+        Host: mmmmmmmmmm.857856.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/55.0.2883.87 Safari/537.36
+      path: /RoieiqFtlfTpJjignez9wTcHYw4Ll
+    xudp: true
+    servername: mmmmmmmmmm.857856.xyz
+  - name: "\U0001F1E6\U0001F1EA阿拉伯酋长国1 | ⬇️ 1.2MB/s"
+    network: ws
+    port: 80
+    server: 172.67.218.184
+    type: vless
+    udp: true
+    uuid: 5459f68e-d914-4b31-93a3-ecdf638b7a5b
+    ws-opts:
+      headers:
+        Host: abcd.taraneh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/70.0.3538.77 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: abcd.taraneh.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国26 | ⬇️ 10.2MB/s"
+    network: ws
+    port: 443
+    server: 104.21.69.41
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: dddfrt5.890602.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 6.0.1; CPH1607 Build/MMB29M; wv)
+          AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0
+          Chrome/63.0.3239.111 Mobile Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: DdDFRt5.890602.xyZ
+  - name: "\U0001F1EB\U0001F1EE芬兰7 | ⬇️ 2.9MB/s"
+    network: ws
+    port: 80
+    server: 104.24.34.94
+    type: vless
+    udp: true
+    uuid: b55ec078-3b17-4ed1-a697-71f464cdcaaa
+    ws-opts:
+      headers:
+        Host: kssepa.sabzipolobamahi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/66.0.3359.139 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: kssepa.sabzipolobamahi.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国27 | ⬇️ 12.4MB/s"
+    network: ws
+    password: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    port: 443
+    server: 172.67.204.22
+    skip-cert-verify: false
+    sni: DDdfrT5.890602.Xyz
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; SM-J710F Build/NRD90M)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile
+          Safari/537.36
+      path: /znQImc22ijDwVOkZfoq
+  - name: "\U0001F1E9\U0001F1EA德国9 | ⬇️ 1.2MB/s"
+    network: ws
+    port: 80
+    server: 172.66.128.138
+    type: vless
+    udp: true
+    uuid: b8be6118-0dd7-4402-ae1a-69b2816f3a7f
+    ws-opts:
+      headers:
+        Host: br.presskiwi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/66.0.3359.117 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: br.presskiwi.dpdns.org
+  - client-fingerprint: firefox
+    http-opts:
+      headers: {}
+      path:
+        - /
+    name: "\U0001F300其他7-VN | ⬇️ 4.5MB/s"
+    network: tcp
+    port: 34045
+    reality-opts:
+      public-key: cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA
+      short-id: e8ab71d0
+    server: 160.250.64.58
+    tls: true
+    type: vless
+    udp: true
+    uuid: d8dd94fd-540e-461d-b5d4-acebef02c22a
+    xudp: true
+    servername: visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me
+  - name: "\U0001F1FA\U0001F1F8美国28 | ⬇️ 1.6MB/s"
+    network: ws
+    port: 80
+    server: 172.67.212.226
+    type: vless
+    udp: true
+    uuid: b8be6118-0dd7-4402-ae1a-69b2816f3a7f
+    ws-opts:
+      headers:
+        Host: br.presskiwi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 6.0.1; SM-G532M Build/MMB29T)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.91 Mobile
+          Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: br.presskiwi.dpdns.org
+  - client-fingerprint: chrome
+    name: "\U0001F1F3\U0001F1F1荷兰5 | ⬇️ 13.5MB/s"
+    network: ws
+    port: 8443
+    server: 141.101.121.214
+    tls: true
+    type: vless
+    udp: true
+    uuid: d342d11e-d424-4583-b36e-524ab1f0afa4
+    ws-opts:
+      headers:
+        Host: >-
+          1750120514574.a1.a2.a3.a4.a5.a6.a7.a8.a9.a10.a11.a12.a13.a14.a15.a16.a17.a18.a19.a20.a21.a22.a23.a24.a25.a26.a27.a28.a29.a30.a31.a32.a33.a34.a35.a36.a37.a38.a39.a40.a41.a42.a43.a44.a45.a46.a47.a48.a49.a50.a51.a52.cdnktff.pp.ua
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/50.0.2661.94 Safari/537.36
+      path: /?ed=2048
+    xudp: true
+    servername: >-
+      1750120514574.a1.a2.a3.a4.a5.a6.a7.a8.a9.a10.a11.a12.a13.a14.a15.a16.a17.a18.a19.a20.a21.a22.a23.a24.a25.a26.a27.a28.a29.a30.a31.a32.a33.a34.a35.a36.a37.a38.a39.a40.a41.a42.a43.a44.a45.a46.a47.a48.a49.a50.a51.a52.cdnktff.pp.ua
+  - name: "\U0001F1E9\U0001F1EA德国10 | ⬇️ 1.7MB/s"
+    network: ws
+    port: 80
+    server: 104.25.86.75
+    type: vless
+    udp: true
+    uuid: d1237c01-58b5-48f9-8a27-8a396b7f5422
+    ws-opts:
+      headers:
+        Host: ey.nazanin.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/66.0.3359.181 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: ey.nazanin.dpdns.org
+  - name: "\U0001F1E9\U0001F1EA德国11 | ⬇️ 1.8MB/s"
+    network: ws
+    port: 80
+    server: 104.17.104.45
+    type: vless
+    udp: true
+    uuid: 9d6315f7-f272-4806-97c8-5fdaafad391e
+    ws-opts:
+      headers:
+        Host: lot.sosant.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/46.0.2490.80 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: lot.sosant.dpdns.org
+  - name: "\U0001F1F3\U0001F1F1荷兰6 | ⬇️ 4.2MB/s"
+    network: ws
+    port: 8080
+    server: 104.16.53.11
+    type: vless
+    udp: true
+    uuid: 338a9b04-21f6-43a5-8422-bc4ffaee4b37
+    ws-opts:
+      headers:
+        Host: nl02.shxshoping.com
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 5.1.1; SM-J120M Build/LMY47X)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile
+          Safari/537.36
+      path: /live
+    xudp: true
+  - name: "\U0001F1E9\U0001F1EA德国12 | ⬇️ 8.6MB/s"
+    network: ws
+    port: 80
+    server: 104.16.101.143
+    type: vless
+    udp: true
+    uuid: db9d419e-3094-4942-9313-d39afd3dd163
+    ws-opts:
+      headers:
+        Host: spx.lindak.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko)
+          Chrome/69.0.3497.100 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: spx.lindak.dpdns.org
+  - alpn:
+      - ''
+    alterId: '0'
+    cipher: auto
+    name: "\U0001F1FA\U0001F1F8美国29 | ⬇️ 5.7MB/s"
+    network: ws
+    port: 80
+    server: 104.21.6.179
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: 6757b7d6-fa32-4708-b5d1-30e3cf928b51
+    ws-opts:
+      headers:
+        Host: xxxxxxxx.890601.xyz
+      path: /WsUikr8wXrXrFl2p8BiMhP42l
+    xudp: true
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1EB\U0001F1EE芬兰8 | ⬇️ 9.2MB/s"
+    network: grpc
+    port: 2182
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.144.165
+    tls: true
+    type: vless
+    udp: true
+    uuid: b96981a2-a6aa-44c0-b21f-88328379ec33
+    xudp: true
+    servername: chess.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国30 | ⬇️ 1.2MB/s"
+    network: ws
+    password: a7c9c017-db10-4d15-b01b-0634db498b57
+    port: 443
+    server: 104.21.13.36
+    skip-cert-verify: false
+    sni: ERt5.0890604.XyZ
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/69.0.3497.100 Safari/537.36
+      path: /OBmXcXufeTh7sLJtI1
+  - name: "\U0001F1F3\U0001F1F1荷兰7 | ⬇️ 2.7MB/s"
+    network: ws
+    port: 80
+    server: 172.66.208.89
+    type: vless
+    udp: true
+    uuid: 26bc13af-e442-4956-afd4-b8f85744d26f
+    ws-opts:
+      headers:
+        Host: fggerlad.gerald81.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/57.0.2987.133 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: fggerlad.gerald81.dpdns.org
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1EB\U0001F1EE芬兰9 | ⬇️ 9.7MB/s"
+    network: grpc
+    port: 2182
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.150.156
+    tls: true
+    type: vless
+    udp: true
+    uuid: b96981a2-a6aa-44c0-b21f-88328379ec33
+    xudp: true
+    servername: chess.com
+  - name: "\U0001F1EB\U0001F1EE芬兰10 | ⬇️ 1.4MB/s"
+    network: ws
+    port: 80
+    server: 104.24.247.217
+    type: vless
+    udp: true
+    uuid: 92f481b6-ad92-43e4-a683-2bb0aeaa9846
+    ws-opts:
+      headers:
+        Host: dw.alibichareh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 5.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/46.0.2490.80 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: dw.alibichareh.dpdns.org
+  - name: "\U0001F1FA\U0001F1F8美国31 | ⬇️ 4.3MB/s"
+    network: ws
+    port: 80
+    server: 172.67.14.59
+    type: vless
+    udp: true
+    uuid: b55ec078-3b17-4ed1-a697-71f464cdcaaa
+    ws-opts:
+      headers:
+        Host: kssepa.sabzipolobamahi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/52.0.2743.116 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: kssepa.sabzipolobamahi.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国32 | ⬇️ 4.5MB/s"
+    network: ws
+    port: 443
+    server: 104.21.9.71
+    tls: true
+    type: vless
+    udp: true
+    uuid: c226ac5d-65e9-4379-95c3-fb542bc242d8
+    ws-opts:
+      headers:
+        Host: ddddddddddf.777198.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; BLL-L22 Build/HUAWEIBLL-L22)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.91 Mobile
+          Safari/537.36
+      path: /OjdW89Bpg4ykd4O
+    xudp: true
+    servername: ddDDdDDdDDF.777198.XyZ
+  - name: "\U0001F1E9\U0001F1EA德国13 | ⬇️ 1.6MB/s"
+    network: ws
+    port: 80
+    server: 104.16.1.106
+    type: vless
+    udp: true
+    uuid: f78ce1bb-0fa6-4ef4-b4c9-b91014a7055d
+    ws-opts:
+      headers:
+        Host: delam.ahaysiahzangi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/66.0.3359.117 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: delam.ahaysiahzangi.dpdns.org
+  - name: "\U0001F1EB\U0001F1EE芬兰11 | ⬇️ 1.2MB/s"
+    network: ws
+    port: 80
+    server: 104.17.99.202
+    type: vless
+    udp: true
+    uuid: 9d6315f7-f272-4806-97c8-5fdaafad391e
+    ws-opts:
+      headers:
+        Host: lot.sosant.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/46.0.2490.86 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: lot.sosant.dpdns.org
+  - name: "\U0001F1E9\U0001F1EA德国14 | ⬇️ 4.7MB/s"
+    network: ws
+    port: 80
+    server: 172.67.33.67
+    type: vless
+    udp: true
+    uuid: b8be6118-0dd7-4402-ae1a-69b2816f3a7f
+    ws-opts:
+      headers:
+        Host: br.presskiwi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/40.0.2214.115 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: br.presskiwi.dpdns.org
+  - name: "\U0001F1E9\U0001F1EA德国15 | ⬇️ 2.1MB/s"
+    network: ws
+    port: 80
+    server: 104.16.240.122
+    type: vless
+    udp: true
+    uuid: d1237c01-58b5-48f9-8a27-8a396b7f5422
+    ws-opts:
+      headers:
+        Host: ey.nazanin.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/51.0.2704.106 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: ey.nazanin.dpdns.org
+  - client-fingerprint: chrome
+    http-opts:
+      headers: {}
+      path:
+        - /
+    name: "\U0001F1FA\U0001F1F8美国33 | ⬇️ 11.7MB/s"
+    network: tcp
+    port: 443
+    server: 135.148.206.182
+    tls: true
+    type: vless
+    udp: true
+    uuid: 54694a33-a8dc-47dd-bc38-acd3971e0055
+    xudp: true
+    servername: 147135004002.sec20org.com
+  - name: "\U0001F1E9\U0001F1EA德国16 | ⬇️ 1.1MB/s"
+    network: ws
+    port: 80
+    server: 172.66.137.85
+    type: vless
+    udp: true
+    uuid: 26bc13af-e442-4956-afd4-b8f85744d26f
+    ws-opts:
+      headers:
+        Host: fggerlad.gerald81.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/51.0.2704.106 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: fggerlad.gerald81.dpdns.org
+  - client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国34 | ⬇️ 13.6MB/s"
+    network: ws
+    password: e4cbe8b8-37db-4aaa-8469-b84f34c51ebc
+    port: 443
+    server: 172.67.205.22
+    skip-cert-verify: false
+    sni: xsCdfVg.20220420.Pp.UA
+    type: trojan
+    udp: true
+    ws-opts:
+      headers:
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/70.0.3538.110 Safari/537.36
+      path: /dilyfCPEmLvYr5hYXD
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国35 | ⬇️ 12.1MB/s"
+    network: ws
+    port: 443
+    server: 104.21.68.76
+    tls: true
+    type: vless
+    udp: true
+    uuid: a96cb093-b164-4bc6-bd27-deb0e385de07
+    ws-opts:
+      headers:
+        Host: dddddddd.222769.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/55.0.2883.87 Safari/537.36
+      path: /3zsSOohi9huFfjEPpIlRig3qizHXb
+    xudp: true
+    servername: DDDDdddD.222769.xYZ
+  - name: "\U0001F1EB\U0001F1EE芬兰12 | ⬇️ 2.7MB/s"
+    network: ws
+    port: 80
+    server: 172.66.134.126
+    type: vless
+    udp: true
+    uuid: 5459f68e-d914-4b31-93a3-ecdf638b7a5b
+    ws-opts:
+      headers:
+        Host: abcd.taraneh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/47.0.2526.106 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: abcd.taraneh.dpdns.org
+  - name: "\U0001F1FA\U0001F1F8美国36 | ⬇️ 3.3MB/s"
+    network: ws
+    port: 80
+    server: 172.67.67.92
+    type: vless
+    udp: true
+    uuid: f78ce1bb-0fa6-4ef4-b4c9-b91014a7055d
+    ws-opts:
+      headers:
+        Host: delam.ahaysiahzangi.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/534.24 (KHTML, like Gecko)
+          Chrome/11.0.696.3 Safari/534.24
+      path: /?ed=2560
+    xudp: true
+    servername: delam.ahaysiahzangi.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国37 | ⬇️ 14.5MB/s"
+    network: ws
+    port: 443
+    server: 104.21.25.95
+    tls: true
+    type: vless
+    udp: true
+    uuid: 07a3df8f-2a2c-42f8-ad92-65889d90f3bf
+    ws-opts:
+      headers:
+        Host: rrrfgt6.890604.filegear-sg.me
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/56.0.2924.87 Safari/537.36
+      path: /5UW2C42lpZ7Dj4VDwVOkZfoq
+    xudp: true
+    servername: rrRFgt6.890604.fiLeGEAR-Sg.ME
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国38 | ⬇️ 1.6MB/s"
+    network: ws
+    port: 443
+    server: 104.21.58.135
+    tls: true
+    type: vless
+    udp: true
+    uuid: 25b0f5db-5405-40d7-85eb-663cfa7e918d
+    ws-opts:
+      headers:
+        Host: rrrrrryyy7.818185.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/41.0.2272.76 Safari/537.36
+      path: /l3y4CZ9KUctFw6Ri5y2
+    xudp: true
+    servername: RrRRRRYyY7.818185.XYZ
+  - name: "\U0001F1FA\U0001F1F8美国39 | ⬇️ 3.7MB/s"
+    network: ws
+    port: 80
+    server: 104.17.105.92
+    type: vless
+    udp: true
+    uuid: 92f481b6-ad92-43e4-a683-2bb0aeaa9846
+    ws-opts:
+      headers:
+        Host: dw.alibichareh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/43.0.2357.65 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+    servername: dw.alibichareh.dpdns.org
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国40 | ⬇️ 1.7MB/s"
+    network: ws
+    port: 443
+    server: 104.21.6.179
+    tls: true
+    type: vless
+    udp: true
+    uuid: 6757b7d6-fa32-4708-b5d1-30e3cf928b51
+    ws-opts:
+      headers:
+        Host: kkkkkkkkkn.890601.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 7.0; BLL-L22 Build/HUAWEIBLL-L22)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.91 Mobile
+          Safari/537.36
+      path: /IpfrZdyuhfl2p8BiMhP42l
+    xudp: true
+    servername: KKkkKkKKkn.890601.XYZ
+  - client-fingerprint: firefox
+    grpc-opts:
+      grpc-service-name: Telegram-ipV2Ry-Telegram-ipV2Ry-Telegram-ipV2Ry
+    name: "\U0001F1F3\U0001F1F1荷兰8 | ⬇️ 9.8MB/s"
+    network: grpc
+    port: 443
+    reality-opts:
+      public-key: pasVbAjcNpjQvgsHBN_WKxQPXwNdXsI4nXYC1usoV0s
+      short-id: df
+    server: 95.164.17.75
+    tls: true
+    type: vless
+    udp: true
+    uuid: a943a9e0-792e-4efe-af1e-54751a44fef8
+    xudp: true
+    servername: ftp.debian.org
+  - client-fingerprint: firefox
+    grpc-opts:
+      grpc-service-name: 'Tel:@VPN_KING_V2RAY'
+    name: "\U0001F1E9\U0001F1EA德国17 | ⬇️ 9.6MB/s"
+    network: grpc
+    port: 2083
+    reality-opts:
+      public-key: BUzfBVmWNSPk69ZlNgIlMvjB_KctXOhYaLx_bBlf70U
+      short-id: 3b35fd9cd4d47fe6
+    server: 91.99.164.73
+    tls: true
+    type: vless
+    udp: true
+    uuid: c7d53e6f-a5bb-4dc1-aa95-1a405e5aef00
+    xudp: true
+    servername: speedtest.net
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国41 | ⬇️ 14.4MB/s"
+    network: ws
+    port: 443
+    server: 172.67.207.27
+    tls: true
+    type: vless
+    udp: true
+    uuid: 15fad364-7af6-4403-9a7c-24c7201646ff
+    ws-opts:
+      headers:
+        Host: dddddddddddddddfff.taipei108.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (X11; U; Linux x86_64; en-US) AppleWebKit/533.2 (KHTML,
+          like Gecko) Chrome/5.0.342.1 Safari/533.2
+      path: /ISk6mbFfXf0Pa9zB9hTi5E8d
+    xudp: true
+    servername: ddDDDdDDDddddDDFfF.taipEi108.DPDNS.Org
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1EB\U0001F1EE芬兰13 | ⬇️ 8.6MB/s"
+    network: grpc
+    port: 2182
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.148.251
+    tls: true
+    type: vless
+    udp: true
+    uuid: b96981a2-a6aa-44c0-b21f-88328379ec33
+    xudp: true
+    servername: chess.com
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1E9\U0001F1EA德国18 | ⬇️ 10.5MB/s"
+    network: grpc
+    port: 3184
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.148.251
+    tls: true
+    type: vless
+    udp: true
+    uuid: ca61341a-2363-445a-bf87-d06393a7fb39
+    xudp: true
+    servername: www.chess.com
+  - name: "\U0001F1FA\U0001F1F8美国42 | ⬇️ 1.1MB/s"
+    network: ws
+    port: 80
+    server: 104.16.180.35
+    type: vless
+    udp: true
+    uuid: 92f481b6-ad92-43e4-a683-2bb0aeaa9846
+    ws-opts:
+      headers:
+        Host: dw.alibichareh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US) AppleWebKit/534.17
+          (KHTML, like Gecko) Chrome/10.0.649.0 Safari/534.17
+      path: /?ed=2560
+    xudp: true
+    servername: dw.alibichareh.dpdns.org
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1E9\U0001F1EA德国19 | ⬇️ 7.6MB/s"
+    network: grpc
+    port: 3184
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.150.157
+    tls: true
+    type: vless
+    udp: true
+    uuid: 2e655095-7f4e-428d-9c7e-eb2278e153a8
+    xudp: true
+    servername: www.chess.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国43 | ⬇️ 14.3MB/s"
+    network: ws
+    port: 443
+    server: 172.67.191.174
+    tls: true
+    type: vless
+    udp: true
+    uuid: 2e65577e-8fdb-4bb1-a495-96f3122099a7
+    ws-opts:
+      headers:
+        Host: tttttttttttt.222769.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/51.0.2704.106 Safari/537.36
+      path: /sMrAaoCaOSZb9TPR
+    xudp: true
+    servername: ttTttttTTTTT.222769.xYz
+  - alpn:
+      - h2
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国44 | ⬇️ 9.1MB/s"
+    network: tcp
+    port: 443
+    server: 15.204.165.210
+    tls: true
+    type: vless
+    udp: true
+    uuid: ea286109-d20f-415e-849e-4af20ab04b65
+    xudp: true
+    servername: 147135001195.sec22org.com
+  - alterId: '2'
+    cipher: auto
+    name: "\U0001F1EB\U0001F1F7法国2 | ⬇️ 4.8MB/s"
+    network: ws
+    port: 30837
+    server: v37.heduian.link
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: cbb3f877-d1fb-344c-87a9-d153bffd5484
+    ws-opts:
+      headers:
+        Host: v37.heduian.link
+      path: /oooo
+    xudp: true
+  - name: "\U0001F1FA\U0001F1F8美国45 | ⬇️ 6.5MB/s"
+    network: ws
+    port: 80
+    server: 172.66.208.89
+    type: vless
+    udp: true
+    uuid: 26bc13af-e442-4956-afd4-b8f85744d26f
+    ws-opts:
+      headers:
+        Host: fggerlad.gerald81.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 6.0; vivo 1606 Build/MMB29M)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.124 Mobile
+          Safari/537.36
+      path: /?ed=2560
+    xudp: true
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国46 | ⬇️ 12.2MB/s"
+    network: ws
+    port: 443
+    server: 3er4.4444916.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: 03e92910-34b1-4245-ac63-04a865f43cd5
+    ws-opts:
+      headers:
+        Host: 3er4.4444916.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/39.0.2171.95 Safari/537.36
+      path: /f7vKDX2UecxmlPhIJoo2wcE6Q
+    xudp: true
+    servername: 3Er4.4444916.xYz
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国47 | ⬇️ 12.4MB/s"
+    network: ws
+    port: 443
+    server: xcvbnnmklo.00890604.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: a7c9c017-db10-4d15-b01b-0634db498b57
+    ws-opts:
+      headers:
+        Host: xcvbnnmklo.00890604.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/32.0.1700.107 Safari/537.36
+      path: /xZjr7v1DqrYyamxeTh7sLJtI1
+    xudp: true
+    servername: xCVbNNMklo.00890604.xyZ
+  - name: "\U0001F1FA\U0001F1F8美国48 | ⬇️ 2.5MB/s"
+    network: ws
+    port: 80
+    server: 104.24.247.217
+    type: vless
+    udp: true
+    uuid: 92f481b6-ad92-43e4-a683-2bb0aeaa9846
+    ws-opts:
+      headers:
+        Host: dw.alibichareh.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/40.0.2214.111 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国49 | ⬇️ 12.3MB/s"
+    network: ws
+    port: 443
+    server: kkkkkkkkkn.890601.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: 6757b7d6-fa32-4708-b5d1-30e3cf928b51
+    ws-opts:
+      headers:
+        Host: kkkkkkkkkn.890601.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/35.0.1916.153 Safari/537.36
+      path: /IpfrZdyuhfl2p8BiMhP42l
+    xudp: true
+    servername: KKkkKkKKkn.890601.XYZ
+  - name: "\U0001F1E9\U0001F1EA德国20 | ⬇️ 4.0MB/s"
+    network: ws
+    port: 80
+    server: 104.18.30.65
+    type: vless
+    udp: true
+    uuid: 9d6315f7-f272-4806-97c8-5fdaafad391e
+    ws-opts:
+      headers:
+        Host: lot.sosant.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 8.0.0; FIG-LX3 Build/HUAWEIFIG-LX3)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile
+          Safari/537.36
+      path: /?ed=2560
+    xudp: true
+  - name: "\U0001F1F0\U0001F1F7韩国2 | ⬇️ 15.4MB/s"
+    network: ws
+    port: 80
+    server: 104.24.60.135
+    type: vless
+    udp: true
+    uuid: cba0b35b-8943-4c70-a864-9f78145b7897
+    ws-opts:
+      headers:
+        Host: agolna.mahsaamini.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/65.0.3325.181 Safari/537.36
+      path: /?ed=2560
+    xudp: true
+  - client-fingerprint: chrome
+    name: "\U0001F1EB\U0001F1EE芬兰14 | ⬇️ 1.3MB/s"
+    network: ws
+    port: 443
+    server: 162.159.49.46
+    tls: true
+    type: vless
+    udp: true
+    uuid: 4e4768df-0fbb-4cc1-8fd3-7c6fea95742a
+    ws-opts:
+      headers:
+        Host: rayan-08.parastoo.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+          like Gecko) Chrome/52.0.2743.116 Safari/537.36
+      path: /@Rayan_Config
+    xudp: true
+    servername: rayan-08.parastoo.dpdns.org
+  - client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国50 | ⬇️ 3.3MB/s"
+    network: ws
+    port: 443
+    server: 162.159.36.102
+    tls: true
+    type: vless
+    udp: true
+    uuid: 7a80a8d9-92f9-4f0a-8352-9005a8215ab8
+    ws-opts:
+      headers:
+        Host: rayan-11.leila.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36
+          (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36
+      path: /@Rayan_Config
+    xudp: true
+    servername: rayan-11.leila.dpdns.org
+  - client-fingerprint: chrome
+    flow: xtls-rprx-vision
+    http-opts:
+      headers: {}
+      path:
+        - /
+    name: "\U0001F1FA\U0001F1F8美国51 | ⬇️ 11.8MB/s"
+    network: tcp
+    port: 1212
+    reality-opts:
+      public-key: RYsjWbL0kjpi144PPllR_2C_KK3a071iGBPUUCsHH1A
+      short-id: a4844ba7
+    server: 34.219.4.158
+    tls: true
+    type: vless
+    udp: true
+    uuid: a7e04b44-855e-4fe7-8fa0-31894e928bce
+    xudp: true
+    servername: stackoverflow.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国52 | ⬇️ 9.7MB/s"
+    network: ws
+    port: 443
+    server: 4444r.0890604.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: a7c9c017-db10-4d15-b01b-0634db498b57
+    ws-opts:
+      headers:
+        Host: 4444r.0890604.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like
+          Gecko) Chrome/50.0.2661.102 Safari/537.36
+      path: /xZjr7v1DqrYyamxeTh7sLJtI1
+    xudp: true
+    servername: 4444R.0890604.xyZ
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: digikala.ir
+    name: "\U0001F1EB\U0001F1EE芬兰15 | ⬇️ 9.4MB/s"
+    network: grpc
+    port: 14787
+    reality-opts:
+      public-key: '---rivmiDN3OHmQHOpowqKDVft8FWrl4BqZ_gyImCR4'
+      short-id: be31134d
+    server: 65.109.203.8
+    tls: true
+    type: vless
+    udp: true
+    uuid: 29b198d6-25e1-4c15-9b53-feacf78ac3d0
+    xudp: true
+    servername: tgju.org
+  - client-fingerprint: chrome
+    grpc-opts:
+      grpc-service-name: chessgame
+    name: "\U0001F1E9\U0001F1EA德国21 | ⬇️ 7.0MB/s"
+    network: grpc
+    port: 3184
+    reality-opts:
+      public-key: hLNxB1vjLv1XhgKvh99s9_0f6qHw50Mrf8B109Hd21I
+      short-id: ''
+    server: 91.99.144.165
+    tls: true
+    type: vless
+    udp: true
+    uuid: 2e655095-7f4e-428d-9c7e-eb2278e153a8
+    xudp: true
+    servername: www.chess.com
+  - client-fingerprint: chrome
+    flow: xtls-rprx-vision
+    http-opts:
+      headers: {}
+      path:
+        - /
+    name: "\U0001F1F0\U0001F1F7韩国3 | ⬇️ 4.4MB/s"
+    network: tcp
+    port: 443
+    server: ako.pagate.top
+    tls: true
+    type: vless
+    udp: true
+    uuid: e6d8d743-a9bc-48c9-be99-8f3cc94d16e1
+    xudp: true
+    servername: ako.pagate.top
+  - client-fingerprint: chrome
+    flow: xtls-rprx-vision
+    name: "\U0001F1FA\U0001F1F8美国53 | ⬇️ 13.4MB/s"
+    network: tcp
+    port: 41439
+    reality-opts:
+      public-key: vX_y4uErSlsl3ftJ-VMEVviUbGJYTeMpKzfam9SDlHI
+      short-id: 9dfe1d83
+    server: cc.188122.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: bea9338b-82eb-4aaa-a32b-1a8cf26be703
+    xudp: true
+    servername: www.yahoo.com
+  - alpn:
+      - http/1.1
+    client-fingerprint: chrome
+    name: "\U0001F1FA\U0001F1F8美国54 | ⬇️ 14.9MB/s"
+    network: ws
+    port: 443
+    server: sssxxxcft6.444752.xyz
+    tls: true
+    type: vless
+    udp: true
+    uuid: 512d9674-db12-44ca-a1b5-654244549b65
+    ws-opts:
+      headers:
+        Host: sssxxxcft6.444752.xyz
+        User-Agent: >-
+          Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko)
+          Chrome/70.0.3538.110 Safari/537.36
+      path: /zzMtGpHptl8a7dX3JIrYk7zm
+    xudp: true
+    servername: sssxxxcft6.444752.xyz
+  - client-fingerprint: chrome
+    name: "\U0001F1E9\U0001F1EA德国22 | ⬇️ 14.0MB/s"
+    network: raw
+    port: 443
+    reality-opts:
+      public-key: GpgfsA-U8Y8M3LRcTfsaBViDtp2VlN5riSLLZ2kxEiQ
+      short-id: 7def4dde
+    server: vpn_proxy_channel_vpn_proxy_channel.hohod.ir
+    tls: true
+    type: vless
+    udp: true
+    uuid: 33707040-edcf-4185-94e4-2a071315c602
+    xudp: true
+    servername: vpn_proxy_channel_vpn_proxy_channel.hohod.ir
+  - alpn:
+      - ''
+    alterId: '2'
+    cipher: auto
+    name: "\U0001F1ED\U0001F1F0香港2 | ⬇️ 4.0MB/s"
+    network: ws
+    port: 80
+    server: 532538de-sv0xs0-sylfil-1gcq2.hk.p5pv.com
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: 759bf004-6137-11ec-bd7c-f23c913c8d2b
+    ws-opts:
+      headers:
+        Host: 532538de-sv0xs0-sylfil-1gcq2.hk.p5pv.com
+      path: /
+    xudp: true
+  - alpn:
+      - ''
+    alterId: '2'
+    cipher: auto
+    name: "\U0001F1ED\U0001F1F0香港3 | ⬇️ 2.2MB/s"
+    network: ws
+    port: 80
+    server: e9dc3722-sv2sg0-sylfil-1gcq2.hk.p5pv.com
+    skip-cert-verify: false
+    tls: false
+    type: vmess
+    udp: true
+    uuid: 759bf004-6137-11ec-bd7c-f23c913c8d2b
+    ws-opts:
+      headers:
+        Host: e9dc3722-sv2sg0-sylfil-1gcq2.hk.p5pv.com
+      path: /
+    xudp: true
+  - name: "\U0001F1E9\U0001F1EA德国23 | ⬇️ 18.0MB/s"
+    network: ws
+    port: 80
+    server: 151.101.130.219
+    type: vless
+    udp: true
+    uuid: "\U0001F449JOKERRVPN_JOKERRVPN\U0001F448"
+    ws-opts:
+      headers:
+        Host: Loopingshop.com
+        User-Agent: >-
+          Mozilla/5.0 (Linux; Android 6.0; MYA-L22 Build/HUAWEIMYA-L22)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.84 Mobile
+          Safari/537.36
+      path: >-
+        /@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN----@JOKERRVPN?ed=2048
+    xudp: true
+  - client-fingerprint: chrome
+    name: "\U0001F1EB\U0001F1EE芬兰16 | ⬇️ 5.5MB/s"
+    network: tcp
+    port: 8080
+    reality-opts:
+      public-key: 3Hj0Zbqa4Ry2r2zeLhGUB4r5atY2KRg5bAFbQ0ulZkE
+      short-id: ''
+    server: fn.turbooserver.ir
+    tls: true
+    type: vless
+    udp: true
+    uuid: turboo-server
+    xudp: true
+    servername: canva.com
+  - client-fingerprint: chrome
+    name: "\U0001F1EC\U0001F1E7英国3 | ⬇️ 14.3MB/s"
+    network: ws
+    port: 443
+    server: 104.26.13.54
+    tls: true
+    type: vless
+    udp: true
+    uuid: 838f5273-5d2d-4630-a0f5-9cc8e4aef4d6
+    ws-opts:
+      headers:
+        Host: kg.ilikeu.dpdns.org
+        User-Agent: >-
+          Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36
+          (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36
+      path: /
+    xudp: true
+    servername: kg.ilikeu.dpdns.org
+proxy-groups:
+  - name: "\U0001F680 节点选择"
+    type: select
+    proxies:
+      - ♻️ 自动选择
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F680 手动切换"
+    include-all: true
+    type: select
+  - name: ♻️ 自动选择
+    type: url-test
+    include-all: true
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F4F2 电报消息"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F4AC Ai平台"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F4F9 油管视频"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F3A5 奈飞视频"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - "\U0001F3A5 奈飞节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F4FA 巴哈姆特"
+    type: select
+    proxies:
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F680 节点选择"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F4FA 哔哩哔哩"
+    type: select
+    proxies:
+      - "\U0001F3AF 全球直连"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+  - name: "\U0001F30D 国外媒体"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+      - DIRECT
+  - name: "\U0001F30F 国内媒体"
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F680 手动切换"
+  - name: "\U0001F4E2 谷歌FCM"
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: Ⓜ️ 微软Bing
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: Ⓜ️ 微软云盘
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: Ⓜ️ 微软服务
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - DIRECT
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: "\U0001F34E 苹果服务"
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: "\U0001F3AE 游戏平台"
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: "\U0001F3B6 网易音乐"
+    type: select
+    include-all: true
+    filter: (?i)网易|音乐|NetEase|Music
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+  - name: "\U0001F3AF 全球直连"
+    type: select
+    proxies:
+      - DIRECT
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+  - name: "\U0001F6D1 广告拦截"
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+  - name: "\U0001F343 应用净化"
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+  - name: "\U0001F41F 漏网之鱼"
+    type: select
+    proxies:
+      - "\U0001F680 节点选择"
+      - ♻️ 自动选择
+      - DIRECT
+      - "\U0001F1ED\U0001F1F0 香港节点"
+      - "\U0001F1E8\U0001F1F3 台湾节点"
+      - "\U0001F1F8\U0001F1EC 狮城节点"
+      - "\U0001F1EF\U0001F1F5 日本节点"
+      - "\U0001F1FA\U0001F1F2 美国节点"
+      - "\U0001F1F0\U0001F1F7 韩国节点"
+      - "\U0001F680 手动切换"
+  - name: "\U0001F1ED\U0001F1F0 香港节点"
+    include-all: true
+    filter: (?i)港|HK|hk|Hong Kong|HongKong|hongkong
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F1EF\U0001F1F5 日本节点"
+    include-all: true
+    filter: (?i)日本|川日|东京|大阪|泉日|埼玉|沪日|深日|JP|Japan
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F1FA\U0001F1F2 美国节点"
+    include-all: true
+    filter: (?i)美|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|US|United States
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F1E8\U0001F1F3 台湾节点"
+    include-all: true
+    filter: (?i)台|新北|彰化|TW|Taiwan
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F1F8\U0001F1EC 狮城节点"
+    include-all: true
+    filter: (?i)新加坡|坡|狮城|SG|Singapore
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F1F0\U0001F1F7 韩国节点"
+    include-all: true
+    filter: (?i)KR|Korea|KOR|首尔|韩|韓
+    type: url-test
+    interval: 300
+    tolerance: 50
+  - name: "\U0001F3A5 奈飞节点"
+    include-all: true
+    filter: (?i)NF|奈飞|解锁|Netflix|NETFLIX|Media
+    type: select
+rule-providers:
+  LocalAreaNetwork:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/LocalAreaNetwork.list
+    path: ./ruleset/LocalAreaNetwork.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  UnBan:
+    url: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/UnBan.list'
+    path: ./ruleset/UnBan.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  BanAD:
+    url: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/BanAD.list'
+    path: ./ruleset/BanAD.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  BanProgramAD:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/BanProgramAD.list
+    path: ./ruleset/BanProgramAD.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  GoogleFCM:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/GoogleFCM.list
+    path: ./ruleset/GoogleFCM.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  GoogleCN:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/GoogleCN.list
+    path: ./ruleset/GoogleCN.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  SteamCN:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/SteamCN.list
+    path: ./ruleset/SteamCN.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Bing:
+    url: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Bing.list'
+    path: ./ruleset/Bing.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  OneDrive:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/OneDrive.list
+    path: ./ruleset/OneDrive.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Microsoft:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Microsoft.list
+    path: ./ruleset/Microsoft.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Apple:
+    url: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Apple.list'
+    path: ./ruleset/Apple.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Telegram:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Telegram.list
+    path: ./ruleset/Telegram.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  AI:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/AI.list
+    path: ./ruleset/AI.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  OpenAi:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/OpenAi.list
+    path: ./ruleset/OpenAi.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  NetEaseMusic:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/NetEaseMusic.list
+    path: ./ruleset/NetEaseMusic.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Epic:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Epic.list
+    path: ./ruleset/Epic.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Origin:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Origin.list
+    path: ./ruleset/Origin.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Sony:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Sony.list
+    path: ./ruleset/Sony.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Steam:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Steam.list
+    path: ./ruleset/Steam.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Nintendo:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Nintendo.list
+    path: ./ruleset/Nintendo.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  YouTube:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/YouTube.list
+    path: ./ruleset/YouTube.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Netflix:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Netflix.list
+    path: ./ruleset/Netflix.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Bahamut:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Bahamut.list
+    path: ./ruleset/Bahamut.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  BilibiliHMT:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/BilibiliHMT.list
+    path: ./ruleset/BilibiliHMT.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Bilibili:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Ruleset/Bilibili.list
+    path: ./ruleset/Bilibili.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  ChinaMedia:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/ChinaMedia.list
+    path: ./ruleset/ChinaMedia.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  ProxyMedia:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/ProxyMedia.list
+    path: ./ruleset/ProxyMedia.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  ProxyGFWlist:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/ProxyGFWlist.list
+    path: ./ruleset/ProxyGFWlist.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  ChinaDomain:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/ChinaDomain.list
+    path: ./ruleset/ChinaDomain.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  ChinaCompanyIp:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/ChinaCompanyIp.list
+    path: ./ruleset/ChinaCompanyIp.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+  Download:
+    url: >-
+      https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Download.list
+    path: ./ruleset/Download.list
+    behavior: classical
+    interval: 86400
+    format: text
+    type: http
+rules:
+  - "PROCESS-NAME,subs-check.exe,\U0001F3AF 全球直连"
+  - "PROCESS-NAME,subs-check,\U0001F3AF 全球直连"
+  - "RULE-SET,LocalAreaNetwork,\U0001F3AF 全球直连"
+  - "RULE-SET,UnBan,\U0001F3AF 全球直连"
+  - "RULE-SET,BanAD,\U0001F6D1 广告拦截"
+  - "RULE-SET,BanProgramAD,\U0001F343 应用净化"
+  - "RULE-SET,GoogleFCM,\U0001F4E2 谷歌FCM"
+  - "RULE-SET,GoogleCN,\U0001F3AF 全球直连"
+  - "RULE-SET,SteamCN,\U0001F3AF 全球直连"
+  - 'RULE-SET,Bing,Ⓜ️ 微软Bing'
+  - 'RULE-SET,OneDrive,Ⓜ️ 微软云盘'
+  - 'RULE-SET,Microsoft,Ⓜ️ 微软服务'
+  - "RULE-SET,Apple,\U0001F34E 苹果服务"
+  - "RULE-SET,Telegram,\U0001F4F2 电报消息"
+  - "RULE-SET,AI,\U0001F4AC Ai平台"
+  - "RULE-SET,NetEaseMusic,\U0001F3B6 网易音乐"
+  - "RULE-SET,Epic,\U0001F3AE 游戏平台"
+  - "RULE-SET,Origin,\U0001F3AE 游戏平台"
+  - "RULE-SET,Sony,\U0001F3AE 游戏平台"
+  - "RULE-SET,Steam,\U0001F3AE 游戏平台"
+  - "RULE-SET,Nintendo,\U0001F3AE 游戏平台"
+  - "RULE-SET,YouTube,\U0001F4F9 油管视频"
+  - "RULE-SET,Netflix,\U0001F3A5 奈飞视频"
+  - "RULE-SET,Bahamut,\U0001F4FA 巴哈姆特"
+  - "RULE-SET,BilibiliHMT,\U0001F4FA 哔哩哔哩"
+  - "RULE-SET,Bilibili,\U0001F4FA 哔哩哔哩"
+  - "RULE-SET,ChinaMedia,\U0001F30F 国内媒体"
+  - "RULE-SET,ProxyMedia,\U0001F30D 国外媒体"
+  - "RULE-SET,ProxyGFWlist,\U0001F680 节点选择"
+  - "RULE-SET,ChinaDomain,\U0001F3AF 全球直连"
+  - "RULE-SET,ChinaCompanyIp,\U0001F3AF 全球直连"
+  - "RULE-SET,Download,\U0001F3AF 全球直连"
+  - "GEOIP,CN,\U0001F3AF 全球直连"
+  - "MATCH,\U0001F41F 漏网之鱼"
